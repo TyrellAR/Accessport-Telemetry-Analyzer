@@ -41,7 +41,7 @@ def test_parse_metadata():
     
     metadata = parse_metadata(ap_info)
 
-    assert metadata.accessport_model == "AP3-SUB-004 v1.7.6.0"
+    assert metadata.accessport_model == "AP3-SUB-004"
     assert metadata.firmware_version == "v1.7.6.0"
     assert metadata.vehicle == "2021 USDM WRX MT CCF Gen2"
     assert metadata.reflash_tune == "Stage1+BigSF 03 v400.ptm"
