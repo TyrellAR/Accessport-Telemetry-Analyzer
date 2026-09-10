@@ -36,6 +36,28 @@ COLUMN_NAME_MAPPING = {
     "oil temp (f)": "oil_temp",
 }
 
+NUMERIC_COLUMNS = {
+    "timestamp",
+    "rpm",
+    "speed",
+    "coolant_temp",
+    "boost",
+    "boost_ext",
+    "afr",
+    "intake_temp",
+    "intake_temp_manifold",
+    "throttle_position",
+    "fuel_pressure",
+    "fuel_pressure_target",
+    "map",
+    "ignition_timing",
+    "inj_duty_cycle",
+    "inj_pulse_width",
+    "maf_corrected",
+    "load",
+    "oil_temp",
+}
+
 
 def normalize_telemetry(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -94,7 +116,14 @@ def _normalize_column_names(df: pd.DataFrame) -> pd.DataFrame:
             normalized = COLUMN_NAME_MAPPING[raw_col_lower]
         else:
             # If no mapping, just lowercase and use underscores
-            normalized = raw_col_lower.replace(" ", "_").replace("-", "_")
+            normalized = (raw_col_lower
+                          .replace(" ", "_")
+                          .replace("-", "_")
+                          .replace("/", "_")
+                          .replace(")", "")
+                          .replace("°", "")
+                          .replace("/", "_")
+                          )
             normalized = normalized.replace("(", "").replace(")", "").replace("°", "")
         rename_map[raw_col] = normalized
 
@@ -115,19 +144,16 @@ def _coerce_numeric_columns(df: pd.DataFrame) -> pd.DataFrame:
         DataFrame with coerced numeric columns
     """
     # Skip these columns (they are not numeric)
-    skip_columns = {"timestamp", "gear_position"}
+    #skip_columns = {"timestamp", "gear_position"}
 
-    for col in df.columns:
-        if col in skip_columns:
+    for column in NUMERIC_COLUMNS:
+        if column not in df.columns:
             continue
 
-        # Try to convert to numeric
-        try:
-            df[col] = pd.to_numeric(df[col], errors="coerce")
-        except Exception:
-            # If conversion fails, leave as-is
-            pass
-
+        df[column] = pd.to_numeric(
+            df[column],
+            errors="coerce",  # Non-numeric values become NAN
+        )
     return df
 
 
