@@ -32,6 +32,21 @@ OPTIONAL_COLUMNS = {
     "ignition timing (°)",
 }
 
+NUMERIC_COLUMNS = {
+    "time (sec)",
+    "rpm (rpm)",
+    "vehicle speed (mph)",
+    "coolant temp (f)",
+    "boost (psi)",
+    "boost extended (psi)",
+    "af sens 1 ratio (afr)",
+    "intake temp (f)",
+    "throttle pos (%)",
+    "fuel pressure (psi)",
+    "man abs press (psi)",
+    "ignition timing (°)",
+}
+
 
 def validate_telemetry(df: pd.DataFrame) -> bool:
     """
@@ -59,6 +74,9 @@ def validate_telemetry(df: pd.DataFrame) -> bool:
 
     # Validate data integrity
     _validate_data_integrity(df)
+
+    # Validate numeric columns
+    _validate_numeric_columns(df)
 
     return True
 
@@ -92,28 +110,93 @@ def _validate_data_integrity(df: pd.DataFrame) -> None:
     Validate data values and integrity.
 
     Checks for:
-    - Empty rows
     - NaN values in critical columns
-    - Invalid numeric values
+
+    Raises:
+        ValidationError: If data integrity issues found
+    """
+
+    # check for completely empty rows
+    empty_rows = df.isna().all(axis=1).sum()
+
+    if empty_rows > 0:
+        raise ValidationError(
+            f"Found {empty_rows} completely empty rows"
+         )
+
+    critical_columns = {
+        "time (sec)",
+        "rpm (rpm)",
+        "vehicle speed (mph)",
+        "coolant temp (f)",
+    }
+
+    df_columns_by_lower = {
+        col.lower(): col for col in df.columns
+    }
+
+    # Check critical columns for excessive NaN values
+    # (allow some missing data, but not too much)
+    for column in critical_columns:
+        actual_column = df_columns_by_lower[column]
+
+        nan_count = df[actual_column].isna().sum()
+        nan_percentage = (nan_count / len(df)) * 100
+
+        if nan_percentage > 50:
+            raise ValidationError(
+                f"Column '{actual_column}' has "
+                f"{nan_percentage:.1f}% missing values"
+            )
+
+
+def _validate_numeric_columns(df: pd.DataFrame) -> None:
+    """
+    Validate that numeric telemetry columns contain valid numeric values.
 
     Args:
         df: DataFrame to validate
 
     Raises:
-        ValidationError: If data integrity issues found
+        ValidationError: If a numeric column contains invalid values
     """
-    # Check for completely empty rows
-    empty_rows = df.isna().all(axis=1).sum()
-    if empty_rows > 0:
-        raise ValidationError(f"Found {empty_rows} completely empty rows")
 
-    # Check critical columns for excessive NaN values
-    # (allow some missing data, but not too much)
-    for col in df.columns:
-        nan_count = df[col].isna().sum()
-        nan_percentage = (nan_count / len(df)) * 100
+    numeric_columns = {
+        "time (sec)",
+        "rpm (rpm)",
+        "vehicle speed (mph)",
+        "coolant temp (f)",
+        "boost (psi)",
+        "boost extended (psi)",
+        "af sens 1 ratio (afr)",
+        "intake temp (f)",
+        "throttle pos (%)",
+        "fuel pressure (psi)",
+        "man abs press (psi)",
+        "ignition timing (°)",
+    }
 
-        if nan_percentage > 50:
+    df_columns_by_lower = {
+        col.lower(): col for col in df.columns
+    }
+
+    for column in numeric_columns:
+        if column not in df_columns_by_lower:
+            continue
+
+        actual_column = df_columns_by_lower[column]
+
+        converted = pd.to_numeric(
+            df[actual_column],
+            errors="coerce",
+        )
+
+        invalid_values = (
+            converted.isna() &
+            df[actual_column].notna()
+        )
+
+        if invalid_values.any():
             raise ValidationError(
-                f"Column '{col}' has {nan_percentage:.1f}% missing values"
+                f"Column '{actual_column}' contains invalid numeric values"
             )
