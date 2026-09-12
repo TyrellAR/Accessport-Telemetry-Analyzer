@@ -1,7 +1,7 @@
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from backend.app.database.models import DatalogModel
-
 
 class DatalogRepository:
     """Repository for database operations involving datalogs."""
@@ -15,3 +15,32 @@ class DatalogRepository:
         self.session.flush()
 
         return datalog
+
+    def get_by_id(self, datalog_id: int) -> DatalogModel | None:
+        """Retrieve a datalog by its primary key."""
+        statement = select(DatalogModel).where(
+        DatalogModel.id == datalog_id
+    )
+
+        return self.session.scalar(statement)
+
+    def get_all(self) -> list[DatalogModel]:
+        """Retrieve all datalogs."""
+        statement = select(DatalogModel)
+
+        return list(self.session.scalars(statement))
+
+    def delete(self, datalog_id: int) -> bool:
+            """Delete a datalog by its primary key"""
+            datalog = self.get_by_id(datalog_id)
+
+            if datalog is None:
+                return False
+
+            self.session.delete(datalog)
+            self.session.flush()
+
+            return True
+
+
+ 
