@@ -165,7 +165,78 @@ def test_retrieve_datalog():
         assert retrieved.telemetry.iloc[1]["rpm"] == 1200.0
         assert retrieved.telemetry.iloc[1]["boost"] == -8.2
 
+def test_persist_and_retrieve_preserves_all_telemetry_fields():
+    telemetry = pd.DataFrame(
+        [
+            {
+                "timestamp": 0.000,
+                "rpm": 850.0,
+                "speed": 0.0,
+                "boost": -10.5,
+                "coolant_temp": 190.0,
+                "boost_ext": -10.2,
+                "afr": 14.7,
+                "intake_temp": 85.0,
+                "intake_temp_manifold": 90.0,
+                "throttle_position": 12.5,
+                "fuel_pressure": 43.5,
+                "fuel_pressure_target": 43.0,
+                "map": 14.2,
+                "ignition_timing": 12.5,
+                "inj_duty_cycle": 3.5,
+                "inj_pulse_width": 1.2,
+                "maf_corrected": 2.8,
+                "load": 0.35,
+                "oil_temp": 185.0,
+            }
+        ]
+    )
 
+    metadata = DatalogMetadata(
+        accessport_model="AP3-SUB-004",
+    )
+
+    datalog = Datalog(
+        filename="round_trip_test.csv",
+        metadata=metadata,
+        telemetry=telemetry,
+    )
+
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        repository = DatalogRepository(session)
+        service = DatalogPersistenceService(repository)
+
+        persisted = service.persist(datalog)
+        retrieved = service.retrieve(persisted.id)
+
+        assert retrieved is not None
+        assert isinstance(retrieved.telemetry, pd.DataFrame)
+        assert len(retrieved.telemetry) == 1
+
+        sample = retrieved.telemetry.iloc[0]
+
+        assert sample["timestamp"] == 0.000
+        assert sample["rpm"] == 850.0
+        assert sample["speed"] == 0.0
+        assert sample["boost"] == -10.5
+        assert sample["coolant_temp"] == 190.0
+        assert sample["boost_ext"] == -10.2
+        assert sample["afr"] == 14.7
+        assert sample["intake_temp"] == 85.0
+        assert sample["intake_temp_manifold"] == 90.0
+        assert sample["throttle_position"] == 12.5
+        assert sample["fuel_pressure"] == 43.5
+        assert sample["fuel_pressure_target"] == 43.0
+        assert sample["map"] == 14.2
+        assert sample["ignition_timing"] == 12.5
+        assert sample["inj_duty_cycle"] == 3.5
+        assert sample["inj_pulse_width"] == 1.2
+        assert sample["maf_corrected"] == 2.8
+        assert sample["load"] == 0.35
+        assert sample["oil_temp"] == 185.0
 
 def test_retrieve_datalog_returns_none_when_not_found():
         engine = create_engine("sqlite:///:memory:")

@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from backend.app.database.models import Base, DatalogModel, TelemetrySampleModel
@@ -175,3 +175,11 @@ def test_delete_datalog_deletes_telemetry_samples():
         repository.delete(datalog.id)
 
         assert repository.get_by_id(datalog.id) is None
+
+        remaining_samples = session.scalars(
+            select(TelemetrySampleModel)).all()
+
+        assert remaining_samples == []
+
+
+

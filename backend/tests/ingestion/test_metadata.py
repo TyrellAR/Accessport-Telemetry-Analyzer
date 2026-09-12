@@ -1,7 +1,8 @@
 
 
 
-from app.services.ingestion.metadata import _extract_segments, parse_metadata
+from backend.app.services.ingestion.metadata import _extract_segments, parse_metadata
+
 
 
 def test_extract_segments():
