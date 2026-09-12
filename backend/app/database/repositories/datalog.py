@@ -1,7 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from backend.app.database.models import DatalogModel
+from backend.app.database.models import DatalogModel, TelemetrySampleModel
 
 class DatalogRepository:
     """Repository for database operations involving datalogs."""
@@ -41,6 +41,14 @@ class DatalogRepository:
             self.session.flush()
 
             return True
+    
+    def add_telemetry_samples(
+        self,
+        samples: list[TelemetrySampleModel],
+    ) -> list[TelemetrySampleModel]:
+        """Persist telemetry samples and return them."""
 
+        self.session.add_all(samples)
+        self.session.flush()
 
- 
+        return samples

@@ -41,6 +41,57 @@ def test_get_datalog_by_id():
         assert result.id == datalog.id
         assert result.filename == "datalog57.csv"
 
+
+
+def test_get_datalog_by_id_includes_telemetry():
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        repository = DatalogRepository(session)
+
+        datalog = DatalogModel(
+            filename="telemetry_test.csv",
+        )
+
+        repository.create(datalog)
+
+        sample_1 = TelemetrySampleModel(
+            datalog=datalog,
+            timestamp=0.000,
+            rpm=850.0,
+            speed=0.0,
+            boost=-10.5,
+        )
+
+        sample_2 = TelemetrySampleModel(
+            datalog=datalog,
+            timestamp=0.055,
+            rpm=1200.0,
+            speed=5.0,
+            boost=-8.2,
+        )
+
+        repository.add_telemetry_samples(
+            [sample_1, sample_2]
+        )
+
+        result = repository.get_by_id(datalog.id)
+
+        assert result is not None
+        assert len(result.telemetry_samples) == 2
+
+        first_sample = result.telemetry_samples[0]
+        second_sample = result.telemetry_samples[1]
+
+        assert first_sample.timestamp == 0.000
+        assert first_sample.rpm == 850.0
+        assert first_sample.boost == -10.5
+
+        assert second_sample.timestamp == 0.055
+        assert second_sample.rpm == 1200.0
+        assert second_sample.boost == -8.2
+
 def test_get_datalog_by_id_returns_none_when_not_found():
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)

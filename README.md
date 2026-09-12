@@ -104,6 +104,7 @@ accessport-telemetry-analyzer/
 │   │   ├── __init__.py
 │   │   ├── main.py
 │   │   ├── api/
+│   │   ├── database/
 │   │   ├── models/
 │   │   ├── services/
 │   │   └── schemas/
@@ -349,7 +350,7 @@ The frontend will be available at the local development address displayed by Vit
 
 ## Testing
 
-Backend tests will be written using Pytest.
+Backend tests are written using Pytest.
 
 Run the test suite with:
 
@@ -357,15 +358,20 @@ Run the test suite with:
 pytest
 ```
 
-The project will eventually include tests covering:
+Current tests cover:
 
-* CSV validation
-* Telemetry parsing
-* Data transformations
-* API endpoints
-* Invalid file handling
-* Database operations
-* Analysis calculations
+* Domain models
+* Database models
+* Database relationships
+* Repository operations
+* Datalog persistence
+* Datalog retrieval
+* Telemetry persistence
+* Telemetry retrieval
+* Database cascade behavior
+* Metadata parsing
+
+Additional tests will be added as development continues.
 
 ---
 
@@ -381,21 +387,74 @@ The project will eventually include tests covering:
 
 ### Phase 2 — Data Ingestion
 
-* [ ] Implement CSV upload
-* [ ] Parse Accessport datalogs
-* [ ] Validate telemetry columns
-* [ ] Handle invalid files
-* [ ] Normalize telemetry data
-* [ ] Add sample datalog
+* [x] Implement CSV parsing
+* [x] Parse Accessport datalogs
+* [x] Validate telemetry columns
+* [x] Handle invalid files
+* [x] Normalize telemetry data
+* [x] Parse Accessport metadata
+* [x] Add sample datalog
+* [x] Create domain datalog model
 
-### Phase 3 — Database
+### Phase 3 — Database & Persistence
 
-* [ ] Configure PostgreSQL
-* [ ] Design database schema
-* [ ] Add SQLAlchemy models
-* [ ] Store log metadata
-* [ ] Store telemetry measurements
-* [ ] Implement database queries
+#### Phase 3.1 — Domain Model
+
+* [x] Create `Datalog` domain model
+* [x] Define datalog metadata model
+* [x] Define normalized telemetry representation
+* [x] Add domain model tests
+
+#### Phase 3.2 — Database Design
+
+* [x] Design datalog database schema
+* [x] Design telemetry sample schema
+* [x] Define primary keys
+* [x] Define foreign-key relationships
+* [x] Configure datalog → telemetry relationships
+* [x] Define cascade-delete behavior
+* [x] Add database indexes
+
+#### Phase 3.3 — Repository Layer
+
+* [x] Configure SQLAlchemy database
+* [x] Create database tables
+* [x] Implement datalog repository
+* [x] Create datalogs
+* [x] Retrieve datalogs by ID
+* [x] Retrieve all datalogs
+* [x] Delete datalogs
+* [x] Persist telemetry samples
+* [x] Add repository tests
+
+#### Phase 3.4 — Persist Datalogs
+
+* [x] Create persistence service
+* [x] Convert domain datalogs to database models
+* [x] Convert telemetry DataFrames to database models
+* [x] Persist datalog metadata
+* [x] Persist telemetry samples
+* [x] Maintain datalog/telemetry relationships
+* [x] Add persistence tests
+
+#### Phase 3.5 — Retrieve Datalogs
+
+* [x] Retrieve datalogs through the repository
+* [x] Convert database metadata to domain metadata
+* [x] Convert telemetry samples to Pandas DataFrames
+* [x] Reconstruct domain `Datalog` objects
+* [x] Handle missing datalog IDs
+* [x] Test database → domain round trips
+
+#### Phase 3.6 — Testing
+
+* [ ] Review Phase 3 test coverage
+* [ ] Add missing unit tests
+* [ ] Add edge-case tests
+* [ ] Test invalid and empty data
+* [ ] Test persistence failure scenarios
+* [ ] Improve test organization
+* [ ] Run complete backend test suite
 
 ### Phase 4 — REST API
 
