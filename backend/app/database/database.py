@@ -20,4 +20,12 @@ Sessionlocal = sessionmaker(
 def init_db() -> None:
     """Create all database tables"""
     Base.metadata.create_all(bind=engine)
-    
+
+def get_db():
+    """Provide a database session to FastAPI endpoints."""
+    db = Sessionlocal()
+
+    try:
+        yield db
+    finally:
+        db.close()
