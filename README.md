@@ -4,7 +4,7 @@ A full-stack application for importing, processing, analyzing, and visualizing v
 
 The project is designed to turn raw vehicle datalogs into an interactive application that makes telemetry easier to inspect, compare, and understand.
 
-> **Project Status:** 🚧 In Development — Backend API development underway
+> **Project Status:** 🚧 In Development — Backend REST API development underway
 
 ---
 
@@ -14,7 +14,7 @@ Vehicle datalogs contain a large amount of time-series information such as engin
 
 The Accessport Telemetry Analyzer provides a centralized system for uploading, processing, storing, retrieving, and eventually visualizing these logs through a REST API and interactive web dashboard.
 
-### Core workflow
+### Core Workflow
 
 ```text
 COBB Accessport CSV
@@ -26,10 +26,16 @@ COBB Accessport CSV
  Data Validation
         │
         ▼
- Pandas Processing
+   CSV Parsing
         │
         ▼
- Data Normalization
+Metadata Extraction
+        │
+        ▼
+Data Normalization
+        │
+        ▼
+ Domain Datalog
         │
         ▼
      Persistence
@@ -49,32 +55,83 @@ COBB Accessport CSV
 
 ---
 
-## Features
+# Features
 
-### Implemented
+## Implemented
+
+### Data Ingestion
 
 * Parse COBB Accessport datalog CSV files
 * Extract Accessport metadata
+* Parse Accessport model and firmware information
+* Parse vehicle information
+* Parse reflash and realtime tune information
 * Validate telemetry columns
+* Validate telemetry data integrity
 * Handle invalid and empty telemetry data
-* Normalize telemetry data
-* Create domain-level datalog objects
-* Persist datalog metadata
-* Persist normalized telemetry samples
-* Retrieve datalogs by ID
-* Retrieve all datalogs
-* Delete datalogs
-* Reconstruct domain datalog objects from database records
-* Convert persisted telemetry back into Pandas DataFrames
-* Maintain datalog → telemetry relationships
-* Cascade-delete telemetry when a datalog is deleted
-* FastAPI application foundation
-* API health-check endpoint
-* Automated backend testing with Pytest
+* Normalize telemetry column names
+* Normalize telemetry data types
+* Create domain-level `Datalog` objects
+* Coordinate ingestion through an ingestion service
 
-### Planned Features
+### Database & Persistence
+
+* SQLAlchemy database configuration
+* SQLite development database
+* Datalog database model
+* Telemetry sample database model
+* Datalog → telemetry relationships
+* Foreign-key relationships
+* Cascade deletion
+* Database indexes
+* Datalog repository
+* Datalog creation
+* Datalog retrieval by ID
+* Datalog listing
+* Datalog deletion
+* Telemetry sample persistence
+* Domain → database conversion
+* Database → domain reconstruction
+* Telemetry DataFrame reconstruction
+* Persistence round-trip testing
+
+### REST API
+
+* FastAPI application
+* API metadata
+* Root endpoint
+* `/health` endpoint
+* Datalog response schema
+* Datalog listing endpoint
+* Individual datalog retrieval endpoint
+* Datalog deletion endpoint
+* API dependency injection for database sessions
+* API integration with SQLAlchemy repository layer
+* API endpoint tests
+* Swagger/OpenAPI documentation
+
+### Testing
+
+* Automated backend testing with Pytest
+* Domain model tests
+* Database model tests
+* Repository tests
+* Persistence tests
+* CSV parser tests
+* Metadata tests
+* Normalization tests
+* Validation tests
+* Ingestion pipeline tests
+* API endpoint tests
+* Database cascade tests
+* Persistence round-trip tests
+
+---
+
+## Planned Features
 
 * Upload COBB Accessport datalog CSV files through the REST API
+* Complete API → ingestion → persistence integration
 * REST API for retrieving telemetry
 * Interactive telemetry charts
 * RPM and boost analysis
@@ -90,9 +147,9 @@ COBB Accessport CSV
 
 ---
 
-## Technology Stack
+# Technology Stack
 
-### Backend
+## Backend
 
 * Python
 * FastAPI
@@ -101,14 +158,14 @@ COBB Accessport CSV
 * SQLite
 * Pytest
 
-### Frontend
+## Frontend
 
 * React
 * TypeScript
 * Vite
 * Recharts
 
-### Development & Infrastructure
+## Development & Infrastructure
 
 * Git
 * GitHub
@@ -121,9 +178,77 @@ COBB Accessport CSV
 
 ---
 
-## Project Structure
+# Architecture
 
-The backend currently contains the following structure:
+The application is being developed using a layered architecture designed to separate HTTP concerns, business logic, domain models, persistence, and database operations.
+
+## Target Architecture
+
+```text
+HTTP Request
+     │
+     ▼
+API Layer
+     │
+     ▼
+Service Layer
+     │
+     ▼
+Domain Model
+     │
+     ▼
+Repository Layer
+     │
+     ▼
+Database
+```
+
+For an uploaded datalog, the intended flow is:
+
+```text
+POST /api/logs/upload
+        │
+        ▼
+    FastAPI API
+        │
+        ▼
+DatalogIngestionService
+        │
+        ├── Parse CSV
+        ├── Extract metadata
+        ├── Validate telemetry
+        └── Normalize telemetry
+        │
+        ▼
+      Datalog
+        │
+        ▼
+DatalogPersistenceService
+        │
+        ▼
+DatalogRepository
+        │
+        ▼
+SQLAlchemy / SQLite
+```
+
+The API layer is responsible for HTTP concerns.
+
+The service layer coordinates application workflows.
+
+The domain layer represents the application's core datalog concepts.
+
+The repository layer handles database operations.
+
+The database layer manages persistence.
+
+This separation is intended to allow individual parts of the application to evolve independently.
+
+---
+
+# Project Structure
+
+The current backend structure is:
 
 ```text
 Accessport-Telemetry-Analyzer/
@@ -132,6 +257,10 @@ Accessport-Telemetry-Analyzer/
 │   ├── app/
 │   │   ├── __init__.py
 │   │   ├── main.py
+│   │   │
+│   │   ├── api/
+│   │   │   ├── __init__.py
+│   │   │   └── datalog.py
 │   │   │
 │   │   ├── database/
 │   │   │   ├── __init__.py
@@ -145,12 +274,17 @@ Accessport-Telemetry-Analyzer/
 │   │   │   ├── __init__.py
 │   │   │   └── datalog.py
 │   │   │
+│   │   ├── schemas/
+│   │   │   ├── __init__.py
+│   │   │   └── datalog.py
+│   │   │
 │   │   └── services/
 │   │       ├── ingestion/
 │   │       │   ├── __init__.py
 │   │       │   ├── metadata.py
 │   │       │   ├── normalizer.py
 │   │       │   ├── parser.py
+│   │       │   ├── service.py
 │   │       │   └── validator.py
 │   │       │
 │   │       └── persistence/
@@ -161,18 +295,22 @@ Accessport-Telemetry-Analyzer/
 │   │   ├── api/
 │   │   │   ├── __init__.py
 │   │   │   └── test_main.py
+│   │   │
 │   │   ├── database/
 │   │   │   ├── test_database.py
 │   │   │   ├── test_models.py
 │   │   │   └── test_repositories.py
+│   │   │
 │   │   ├── ingestion/
 │   │   │   ├── test_metadata.py
 │   │   │   ├── test_normalizer.py
 │   │   │   ├── test_parser.py
 │   │   │   ├── test_pipeline.py
 │   │   │   └── test_validator.py
+│   │   │
 │   │   ├── models/
 │   │   │   └── test_datalog.py
+│   │   │
 │   │   └── services/
 │   │       └── test_persistence.py
 │   │
@@ -189,48 +327,71 @@ Accessport-Telemetry-Analyzer/
 └── docker-compose.yml
 ```
 
-The API layer is currently being developed within `backend/app/main.py`. Dedicated API modules will be introduced as the REST API grows.
+The API has now been separated from the FastAPI application entry point.
+
+`backend/app/main.py` is responsible for creating the FastAPI application and registering API routers.
+
+Datalog-specific HTTP endpoints are located in:
+
+```text
+backend/app/api/datalog.py
+```
+
+API response schemas are located in:
+
+```text
+backend/app/schemas/datalog.py
+```
+
+Ingestion orchestration is handled by:
+
+```text
+backend/app/services/ingestion/service.py
+```
 
 ---
 
-## API
+# API
 
 The backend exposes a RESTful API for interacting with telemetry logs.
 
-### Current Endpoints
+## Current Endpoints
 
-| Method | Endpoint  | Description     |
-| ------ | --------- | --------------- |
-| `GET`  | `/`       | API information |
-| `GET`  | `/health` | Health check    |
+| Method   | Endpoint         | Description                 |
+| -------- | ---------------- | --------------------------- |
+| `GET`    | `/`              | API information             |
+| `GET`    | `/health`        | Health check                |
+| `GET`    | `/api/logs`      | Retrieve all datalogs       |
+| `GET`    | `/api/logs/{id}` | Retrieve a specific datalog |
+| `DELETE` | `/api/logs/{id}` | Delete a datalog            |
 
-### Planned Endpoints
+## In Development
 
-| Method   | Endpoint                   | Description                  |
-| -------- | -------------------------- | ---------------------------- |
-| `POST`   | `/api/logs/upload`         | Upload a telemetry CSV       |
-| `GET`    | `/api/logs`                | Retrieve uploaded logs       |
-| `GET`    | `/api/logs/{id}`           | Retrieve a specific log      |
-| `GET`    | `/api/logs/{id}/telemetry` | Retrieve telemetry samples   |
-| `GET`    | `/api/logs/{id}/metrics`   | Retrieve telemetry metrics   |
-| `GET`    | `/api/logs/{id}/analysis`  | Retrieve calculated analysis |
-| `DELETE` | `/api/logs/{id}`           | Delete a telemetry log       |
+| Method | Endpoint           | Description                        |
+| ------ | ------------------ | ---------------------------------- |
+| `POST` | `/api/logs/upload` | Upload and persist a telemetry CSV |
 
-Interactive API documentation is provided by FastAPI:
+## Planned Endpoints
 
-```text
-/docs
-```
+| Method | Endpoint                   | Description                  |
+| ------ | -------------------------- | ---------------------------- |
+| `GET`  | `/api/logs/{id}/telemetry` | Retrieve telemetry samples   |
+| `GET`  | `/api/logs/{id}/metrics`   | Retrieve telemetry metrics   |
+| `GET`  | `/api/logs/{id}/analysis`  | Retrieve calculated analysis |
 
-Once the development server is running, the interactive Swagger UI will be available at:
+Interactive API documentation is provided by FastAPI.
+
+Once the development server is running:
 
 ```text
 http://127.0.0.1:8000/docs
 ```
 
+The OpenAPI specification is also available through FastAPI.
+
 ---
 
-## Telemetry Data
+# Telemetry Data
 
 The application is designed to work with time-series vehicle telemetry such as:
 
@@ -250,22 +411,24 @@ The application is designed to work with time-series vehicle telemetry such as:
 
 The exact telemetry channels depend on the Accessport configuration and the data contained within each log.
 
+The ingestion system normalizes supported source channels into consistent application-level field names.
+
 ---
 
-## Data Analysis
+# Data Analysis
 
 The application will calculate and visualize useful statistics from uploaded telemetry.
 
 Examples include:
 
-### Engine Speed
+## Engine Speed
 
 * Minimum RPM
 * Maximum RPM
 * Average RPM
 * RPM over time
 
-### Boost / MAP
+## Boost / MAP
 
 * Minimum pressure
 * Maximum pressure
@@ -273,7 +436,7 @@ Examples include:
 * Pressure vs. RPM
 * Pressure vs. time
 
-### AFR / Lambda
+## AFR / Lambda
 
 * Minimum value
 * Maximum value
@@ -281,20 +444,20 @@ Examples include:
 * AFR/lambda vs. RPM
 * AFR/lambda vs. time
 
-### Temperature
+## Temperature
 
 * Intake air temperature
 * Coolant temperature
 * Temperature changes over time
 
-### Throttle
+## Throttle
 
 * Throttle position over time
 * Throttle position vs. RPM
 
 ---
 
-## Example Visualizations
+# Example Visualizations
 
 The dashboard will provide interactive charts such as:
 
@@ -315,9 +478,9 @@ Additional charts will allow multiple telemetry channels to be analyzed independ
 
 ---
 
-## Getting Started
+# Getting Started
 
-### Prerequisites
+## Prerequisites
 
 Make sure the following are installed:
 
@@ -328,11 +491,11 @@ Make sure the following are installed:
 
 The current backend uses SQLite, so PostgreSQL is **not required for local development**.
 
-Docker support will be added as the project develops.
+Docker support will be expanded as the project develops.
 
 ---
 
-## Backend Setup
+# Backend Setup
 
 Clone the repository:
 
@@ -379,7 +542,7 @@ Run the backend tests:
 python -m pytest backend/tests -v
 ```
 
-The development API server can be started with Uvicorn once the server dependencies are available:
+Start the development server:
 
 ```bash
 uvicorn app.main:app --reload
@@ -399,7 +562,7 @@ http://127.0.0.1:8000/docs
 
 ---
 
-## Testing
+# Testing
 
 Backend tests are written using Pytest.
 
@@ -409,7 +572,7 @@ Run the complete backend test suite with:
 python -m pytest backend/tests -v
 ```
 
-### Current Test Coverage
+## Test Coverage
 
 The test suite currently covers:
 
@@ -431,26 +594,49 @@ The test suite currently covers:
 * Telemetry validation
 * Ingestion pipeline behavior
 * FastAPI health endpoint
+* Datalog API listing
+* Datalog API retrieval
+* Datalog API deletion
+* API not-found behavior
 
-### Current Test Status
+The API tests use an isolated test database so API testing does not depend on the development SQLite database.
+
+## Development Testing Strategy
+
+The project uses multiple levels of testing:
 
 ```text
-50 passed
+Unit Tests
+    │
+    ├── Parser
+    ├── Validator
+    ├── Normalizer
+    ├── Metadata
+    └── Domain Models
+         │
+         ▼
+Service Tests
+    │
+    └── Persistence / Ingestion
+         │
+         ▼
+API Tests
+    │
+    └── HTTP endpoints
+         │
+         ▼
+Integration Tests
+    │
+    └── Upload → Ingestion → Persistence
 ```
 
-The current backend baseline is:
-
-```text
-50 tests passing
-```
-
-The project uses automated tests throughout development to verify behavior before moving between development phases.
+The goal is to verify individual components independently before verifying complete application workflows.
 
 ---
 
 # Development Roadmap
 
-## Phase 1 — Project & Backend Foundation
+# Phase 1 — Project & Backend Foundation
 
 * [x] Initialize Git repository
 * [x] Create Python environment
@@ -464,7 +650,7 @@ The project uses automated tests throughout development to verify behavior befor
 
 ---
 
-## Phase 2 — Data Ingestion
+# Phase 2 — Data Ingestion
 
 * [x] Implement CSV parsing
 * [x] Parse Accessport datalogs
@@ -475,6 +661,8 @@ The project uses automated tests throughout development to verify behavior befor
 * [x] Parse Accessport metadata
 * [x] Add sample datalog
 * [x] Create domain datalog model
+
+**Phase 2 Status: ✅ Complete**
 
 ---
 
@@ -557,53 +745,82 @@ The project uses automated tests throughout development to verify behavior befor
 * [x] Verify complete backend test suite
 * [x] Record backend dependencies
 * [x] Clean tracked Python bytecode from repository
+* [x] Create dedicated API package
 * [x] Commit API foundation
 * [x] Push Phase 4.1 to GitHub
 
 **Phase 4.1 Status: ✅ Complete**
 
-Latest commit:
-
-```text
-9cf5af5 Add FastAPI foundation
-```
-
-Current Git state:
-
-```text
-main → origin/main
-working tree clean
-```
-
 ---
 
 ## Phase 4.2 — Datalog Endpoints
 
-* [ ] Design API request/response schemas
-* [ ] Implement datalog upload endpoint
-* [ ] Connect upload endpoint to ingestion pipeline
-* [ ] Connect ingestion pipeline to persistence service
-* [ ] Implement datalog listing endpoint
-* [ ] Implement individual datalog retrieval endpoint
-* [ ] Implement datalog deletion endpoint
-* [ ] Add endpoint tests
+### API Schemas
+
+* [x] Create datalog response schema
+* [x] Configure Pydantic ORM/database-model compatibility
+
+### Datalog Listing
+
+* [x] Implement `GET /api/logs`
+* [x] Connect endpoint to repository
+* [x] Add API tests
+* [x] Test empty datalog collection
+* [x] Test multiple datalogs
+
+### Individual Datalog Retrieval
+
+* [x] Implement `GET /api/logs/{id}`
+* [x] Return 404 for missing datalog IDs
+* [x] Add API tests
+
+### Datalog Deletion
+
+* [x] Implement `DELETE /api/logs/{id}`
+* [x] Return 404 for missing datalog IDs
+* [x] Commit database deletion
+* [x] Verify cascade deletion of telemetry samples
+* [x] Add API tests
+
+### Datalog Upload
+
+* [ ] Implement `POST /api/logs/upload`
+* [x] Create `DatalogIngestionService`
+* [x] Connect parsing to metadata extraction
+* [x] Connect validation to ingestion pipeline
+* [x] Connect normalization to ingestion pipeline
+* [ ] Connect uploaded files to ingestion service
+* [ ] Connect ingestion service to persistence service
+* [ ] Persist uploaded datalogs through the API
+* [ ] Return persisted datalog through the API
+* [ ] Add upload endpoint tests
+
+### Phase 4.2 Integration
+
 * [ ] Verify API → service → repository flow
+* [ ] Verify upload → ingestion → persistence
+* [ ] Verify persisted datalog can be retrieved through API
+* [ ] Verify uploaded telemetry is persisted
+* [ ] Verify deletion after API upload
 
 **Current Development Phase: 🚧 Phase 4.2**
 
+**Current Focus: `POST /api/logs/upload`**
+
 ---
 
-## Phase 4.3 — Telemetry Endpoints
+# Phase 4.3 — Telemetry Endpoints
 
 * [ ] Implement telemetry retrieval endpoint
+* [ ] Retrieve telemetry samples for a datalog
 * [ ] Convert telemetry data into API-friendly JSON
+* [ ] Design telemetry response schemas
 * [ ] Handle large telemetry datasets
-* [ ] Add telemetry response schemas
 * [ ] Add telemetry endpoint tests
 
 ---
 
-## Phase 4.4 — Analysis & Metrics
+# Phase 4.4 — Analysis & Metrics
 
 * [ ] Design metrics service
 * [ ] Implement telemetry statistics
@@ -618,20 +835,29 @@ working tree clean
 
 ---
 
-## Phase 4.5 — API Validation & Error Handling
+# Phase 4.5 — API Validation & Error Handling
+
+This phase will focus specifically on making the API robust when dealing with invalid requests and files.
 
 * [ ] Validate uploaded files
+* [ ] Validate file extensions
 * [ ] Validate request parameters
 * [ ] Handle invalid CSV files
+* [ ] Handle malformed CSV files
+* [ ] Handle empty files
 * [ ] Handle unsupported file types
+* [ ] Handle invalid telemetry data
 * [ ] Handle missing datalog IDs
 * [ ] Return appropriate HTTP status codes
-* [ ] Add meaningful API error responses
-* [ ] Add validation tests
+* [ ] Create meaningful API error responses
+* [ ] Add API validation tests
+* [ ] Add API error-handling tests
 
 ---
 
-## Phase 4.6 — API Integration Testing
+# Phase 4.6 — API Integration Testing
+
+This phase will verify complete workflows across multiple application layers.
 
 * [ ] Test upload → ingestion → persistence
 * [ ] Test persistence → API retrieval
@@ -639,9 +865,10 @@ working tree clean
 * [ ] Test analysis workflow
 * [ ] Test deletion workflow
 * [ ] Test complete API lifecycle
+* [ ] Test invalid API workflows
 * [ ] Run complete backend test suite
 
-**Phase 4 Goal:**
+### Complete API Lifecycle
 
 ```text
 Upload
@@ -652,6 +879,8 @@ Parse
    ↓
 Normalize
    ↓
+Create Domain Object
+   ↓
 Persist
    ↓
 Retrieve
@@ -660,6 +889,10 @@ Analyze
    ↓
 Delete
 ```
+
+**Phase 4 Goal:**
+
+Build a complete backend API capable of accepting a COBB Accessport datalog, processing it through the application's data pipeline, persisting it, retrieving it, analyzing it, and deleting it.
 
 ---
 
@@ -717,7 +950,7 @@ Delete
 
 ---
 
-## Engineering Goals
+# Engineering Goals
 
 This project is being developed with real-world software engineering practices in mind.
 
@@ -755,11 +988,15 @@ Repository Layer
 Database
 ```
 
-This separation allows the API, business logic, domain models, persistence layer, and database to evolve independently.
+The current implementation is progressively moving toward this architecture.
+
+For example, the upload workflow uses dedicated ingestion and persistence services to keep processing and database logic outside the HTTP endpoint.
+
+Simple CRUD endpoints currently use the repository layer directly where appropriate. As the API grows, application-level workflows will be moved behind services when additional business logic is introduced.
 
 ---
 
-## Important Note
+# Important Note
 
 This application is intended for **data analysis and visualization**.
 
@@ -767,7 +1004,7 @@ Telemetry observations or automated flags produced by the application should not
 
 ---
 
-## Future Improvements
+# Future Improvements
 
 Potential future features include:
 
@@ -790,7 +1027,7 @@ Potential future features include:
 
 ---
 
-## License
+# License
 
 This project is currently intended as a personal software engineering portfolio project.
 
@@ -798,7 +1035,7 @@ A formal open-source license may be added in the future.
 
 ---
 
-## Author
+# Author
 
 **Tyrell Robbins**
 
