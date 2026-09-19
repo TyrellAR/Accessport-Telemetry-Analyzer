@@ -203,4 +203,33 @@ def test_delete_datalog_cascades_telemetry_samples(test_db):
         assert deleted_datalog is None
         assert deleted_sample_1 is None
         assert deleted_sample_2 is None
-        
+
+def test_upload_datalog(test_db):
+    """Test uploading a valid COBB Accessport datalog."""
+
+    app.dependency_overrides[get_db] = override_get_db(test_db)
+
+    try:
+        with TestClient(app) as client:
+            with open("data/sample/datalog57.csv", "rb") as file:
+                response = client.post(
+                    "/api/logs/upload",
+                    files={
+                        "file": (
+                            "datalog57.csv",
+                            file,
+                            "text/csv",
+                        )
+                    },
+                )
+
+                assert response.status_code == 200
+
+                data = response.json()
+
+                assert data["filename"] == "datalog57.csv"
+                assert data["accessport_model"] == "AP3-SUB-004"
+                assert data["vehicle"] == "2021 USDM WRX MT CCF Gen2"
+
+    finally:
+        app.dependency_overrides.clear()
