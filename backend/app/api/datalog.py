@@ -1,9 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException
+import tempfile
+
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile
 from sqlalchemy.orm import Session
 
 from backend.app.database.database import get_db
 from backend.app.database.repositories.datalog import DatalogRepository
 from backend.app.schemas.datalog import DatalogResponse
+from backend.app.services.ingestion.service import DatalogIngestionService
+from backend.app.services.persistence.datalog import DatalogPersistenceService
 
 
 router = APIRouter(
@@ -53,3 +57,31 @@ def delete_datalog(
     db.commit()
 
     return {"detail": "Datalog deleted"}
+
+@router.post("/upload", response_model=DatalogResponse)
+def upload_datalog(
+        file: UploadFile = File(...),
+        db: Session = Depends(get_db),
+): 
+    """Upload, ingest, and persist a COBB Accessport datalog."""
+
+    with tempfile.NamedTemporaryFile(suffix=".csv") as temp_file:
+        temp_file.write(file.file.read())
+        temp_file.flush()
+
+        ingestion_service = DatalogIngestionService()
+
+        datalog = ingestion_service.ingest(
+            temp_file.name,
+            file.filename or "uploaded.csv",
+        )
+
+        repository = DatalogRepository(db)
+
+        persistence_service = DatalogPersistenceService(repository)
+
+        datalog_model = persistence_service.persist(datalog)
+
+        db.commit()
+
+        return datalog_model

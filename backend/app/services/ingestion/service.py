@@ -18,7 +18,7 @@ class DatalogIngestionService:
 
         parsed_log = parse_log(file_path)
 
-        ap_info = parse_log["metadata"].get(
+        ap_info = parsed_log["metadata"].get(
             "ap_info",
             "",
         )
@@ -34,7 +34,7 @@ class DatalogIngestionService:
         return Datalog(
             filename=filename,
             metadata=metadata,
-            telemetry=normalize_telemetry,
+            telemetry=normalized_telemetry,
         )
 
 
