@@ -76,7 +76,7 @@ def test_get_datalogs_returns_datalogs(test_db):
     assert data[1]["vehicle"] == "2021 USDM WRX"
 
     app.dependency_overrides.clear()
-        
+
 
 def test_get_datalog_by_id(test_db):
     app.dependency_overrides[get_db] = override_get_db(test_db)
@@ -230,6 +230,101 @@ def test_upload_datalog(test_db):
                 assert data["filename"] == "datalog57.csv"
                 assert data["accessport_model"] == "AP3-SUB-004"
                 assert data["vehicle"] == "2021 USDM WRX MT CCF Gen2"
+
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_upload_empty_csv_returns_422(test_db):
+    """Test uploading an empty CSV returns a 422 error."""
+
+    app.dependency_overrides[get_db] = override_get_db(test_db)
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/logs/upload",
+                files={
+                    "file": (
+                        "empty.csv",
+                        "time (sec), RPM (RPM), Vehicle Speed (mph), Coolant Temp (F)\n",
+                        "text/csv",
+                    ),
+                },
+            )
+
+            assert response.status_code == 422
+            assert response.json()["detail"] == "CSV file is empty"
+
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_upload_insufficient_datalog_returns_422(test_db):
+    """Test uploading a CSV with too few telemetry rows returns 422."""
+
+    app.dependency_overrides[get_db] = override_get_db(test_db)
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/logs/upload",
+                files={
+                    "file": (
+                        "insufficient.csv",
+                        (
+                            "time (sec), (RPM), Vehicle Speed (mph), Coolant Temp (F)\n"
+                            "0,800,0,190\n"
+
+                        ),
+                        "test/csv",
+                    ),
+                },
+            )
+
+            assert response.status_code == 422
+            assert response.json()["detail"] == (
+                "Telemetry has only 1 rows, need at least 10"
+            )
+
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_upload_invalid_file_type_returns_422(test_db):
+    """Test that uploading a non-CSV file return 422."""
+
+    app.dependency_overrides[get_db] = override_get_db(test_db)
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/logs/upload",
+                files={
+                    "file": (
+                        "wrong_file_type.txt",
+                        (
+                            "time (sec),RPM (RPM),Vehicle Speed (mph),Coolant Temp (F)\n"
+                            "0,800,0,190\n"
+                            "1,900,1,190\n"
+                            "2,1000,2,191\n"
+                            "3,1100,3,191\n"
+                            "4,1200,4,192\n"
+                            "5,1300,5,192\n"
+                            "6,1400,6,193\n"
+                            "7,1500,7,193\n"
+                            "8,1600,8,194\n"
+                            "9,1700,9,194\n"
+                        ),
+                        "text/plain",
+
+                    ),
+
+                },
+            )
+
+            assert response.status_code == 422
+            assert response.json()["detail"] == "The program only accepts .csv files"
 
     finally:
         app.dependency_overrides.clear()

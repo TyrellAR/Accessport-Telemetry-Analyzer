@@ -6,7 +6,9 @@ from sqlalchemy.orm import Session
 from backend.app.database.database import get_db
 from backend.app.database.repositories.datalog import DatalogRepository
 from backend.app.schemas.datalog import DatalogResponse
+from backend.app.services.ingestion.parser import ParseError
 from backend.app.services.ingestion.service import DatalogIngestionService
+from backend.app.services.ingestion.validator import ValidationError
 from backend.app.services.persistence.datalog import DatalogPersistenceService
 
 
@@ -60,28 +62,35 @@ def delete_datalog(
 
 @router.post("/upload", response_model=DatalogResponse)
 def upload_datalog(
-        file: UploadFile = File(...),
-        db: Session = Depends(get_db),
-): 
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
     """Upload, ingest, and persist a COBB Accessport datalog."""
 
+    if not file.filename or not file.filename.lower().endswith(".csv"):
+        raise HTTPException(
+            status_code=422,
+            detail="The program only accepts .csv files",
+        )
     with tempfile.NamedTemporaryFile(suffix=".csv") as temp_file:
         temp_file.write(file.file.read())
         temp_file.flush()
 
         ingestion_service = DatalogIngestionService()
 
-        datalog = ingestion_service.ingest(
-            temp_file.name,
-            file.filename or "uploaded.csv",
-        )
-
+        try:
+            datalog = ingestion_service.ingest(
+                temp_file.name,
+                file.filename or "uploaded.csv",
+            )
+        except (ParseError, ValidationError) as e:
+            raise HTTPException(
+                status_code=422,
+                detail=str(e),
+            ) from e
         repository = DatalogRepository(db)
-
         persistence_service = DatalogPersistenceService(repository)
-
         datalog_model = persistence_service.persist(datalog)
-
         db.commit()
 
         return datalog_model
