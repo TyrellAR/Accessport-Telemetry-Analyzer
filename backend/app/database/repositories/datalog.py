@@ -41,7 +41,7 @@ class DatalogRepository:
             self.session.flush()
 
             return True
-    
+
     def add_telemetry_samples(
         self,
         samples: list[TelemetrySampleModel],
@@ -53,4 +53,13 @@ class DatalogRepository:
 
         return samples
 
-   
+    def get_telemetry_samples(
+            self, datalog_id: int
+    ) -> list[TelemetrySampleModel]:
+        statement = (
+            select(TelemetrySampleModel)
+            .where(TelemetrySampleModel.datalog_id == datalog_id)
+            .order_by(TelemetrySampleModel.timestamp)
+        )
+
+        return list(self.session.scalars(statement))

@@ -5,11 +5,12 @@ from sqlalchemy.orm import Session
 
 from backend.app.database.database import get_db
 from backend.app.database.repositories.datalog import DatalogRepository
-from backend.app.schemas.datalog import DatalogResponse
+from backend.app.schemas.datalog import DatalogResponse, TelemetrySampleResponse
 from backend.app.services.ingestion.parser import ParseError
 from backend.app.services.ingestion.service import DatalogIngestionService
 from backend.app.services.ingestion.validator import ValidationError
 from backend.app.services.persistence.datalog import DatalogPersistenceService
+
 
 
 router = APIRouter(
@@ -39,6 +40,28 @@ def get_datalog(datalog_id: int, db: Session = Depends(get_db)):
         )
 
     return datalog
+
+@router.get(
+        "/{datalog_id}/telemetry",
+        response_model=list[TelemetrySampleResponse],
+)
+def get_datalog_telemetry(
+    datalog_id: int,
+    db: Session = Depends(get_db),
+):
+
+    """Return telemetry samples for a datalog."""
+
+    repository = DatalogRepository(db)
+
+    datalog = repository.get_by_id(datalog_id)
+
+    if datalog is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Datalog not found",
+        )
+    return repository.get_telemetry_samples(datalog_id)
 
 @router.delete("/{datalog_id}")
 def delete_datalog(

@@ -21,7 +21,6 @@ def test_create_datalog():
         assert result.id is not None
         assert result.filename == "datalog57.csv"
 
-
 def test_get_datalog_by_id():
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
@@ -40,8 +39,6 @@ def test_get_datalog_by_id():
         assert result is not None
         assert result.id == datalog.id
         assert result.filename == "datalog57.csv"
-
-
 
 def test_get_datalog_by_id_includes_telemetry():
     engine = create_engine("sqlite:///:memory:")
@@ -137,7 +134,6 @@ def test_delete_datalog():
         assert result is True
         assert repository.get_by_id(datalog.id) is None
 
-
 def test_delete_datalog_returns_false_when_not_found():
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
@@ -181,5 +177,44 @@ def test_delete_datalog_deletes_telemetry_samples():
 
         assert remaining_samples == []
 
+def test_get_telemetry_samples():
+    """Test retrieving telemetry samples for a datalog."""
 
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
 
+    with Session(engine) as session:
+        repository = DatalogRepository(session)
+
+        datalog = DatalogModel(
+            filename="telemetry_test.csv",
+            vehicle="2021 USDM WRX",
+        )
+
+        repository.create(datalog)
+
+        sample_1 = TelemetrySampleModel(
+            timestamp=2.0,
+            rpm=3000,
+            datalog=datalog,
+        )
+
+        sample_2 = TelemetrySampleModel(
+            timestamp=1.0,
+            rpm=2500,
+            datalog=datalog,
+        )
+        repository.add_telemetry_samples(
+            [sample_1, sample_2]
+        )
+
+        samples = repository.get_telemetry_samples(datalog.id)
+
+        assert len(samples) == 2
+
+        # Samples should be returned in chronological order.
+        assert samples[0].timestamp == 1.0
+        assert samples[1].timestamp == 2.0
+
+        assert samples[0].rpm == 2500
+        assert samples[1].rpm == 3000

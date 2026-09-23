@@ -28,8 +28,6 @@ def override_get_db(test_db):
 
     return _get_db
 
-
-
 client = TestClient(app)
 
 def test_health_check():
@@ -77,7 +75,6 @@ def test_get_datalogs_returns_datalogs(test_db):
 
     app.dependency_overrides.clear()
 
-
 def test_get_datalog_by_id(test_db):
     app.dependency_overrides[get_db] = override_get_db(test_db)
 
@@ -102,7 +99,6 @@ def test_get_datalog_by_id(test_db):
 
     app.dependency_overrides.clear()
 
-
 def test_get_datalog_by_id_not_found(test_db):
     app.dependency_overrides[get_db] = override_get_db(test_db)
 
@@ -112,6 +108,86 @@ def test_get_datalog_by_id_not_found(test_db):
     assert response.json() == {"detail": "Datalog not found"}
 
     app.dependency_overrides.clear()
+
+def test_get_datalog_telemetry(test_db):
+    """Test retrieving telemetry samples for a datalog."""
+
+    app.dependency_overrides[get_db] = override_get_db(test_db)
+
+    try:
+        datalog = DatalogModel(
+            filename="telemetry_test.csv",
+            vehicle="2021 USDM WRX",
+        )
+
+        sample_1 = TelemetrySampleModel(
+            timestamp=1.0,
+            rpm=2500,
+            speed=30,
+            coolant_temp=190,
+            boost=12.5,
+            datalog=datalog,
+        )
+
+        sample_2 = TelemetrySampleModel(
+            timestamp=2.0,
+            rpm=3000,
+            speed=35,
+            coolant_temp=191,
+            boost=14.0,
+            datalog=datalog,
+        )
+
+        with Session(test_db) as session:
+            session.add(datalog)
+            session.add_all([sample_1, sample_2])
+            session.commit()
+
+            datalog_id = datalog.id
+
+        with TestClient(app) as client:
+            response = client.get(
+                f"/api/logs/{datalog_id}/telemetry"
+            )
+
+            assert response.status_code == 200
+
+            data = response.json()
+
+            assert len(data) == 2
+
+            assert data[0]["timestamp"] == 1.0
+            assert data[0]["rpm"] == 2500
+            assert data[0]["speed"] == 30
+            assert data[0]["coolant_temp"] == 190
+            assert data[0]["boost"] == 12.5
+
+            assert data[1]["timestamp"] == 2.0
+            assert data[1]["rpm"] == 3000
+            assert data[1]["speed"] == 35
+            assert data[1]["coolant_temp"] == 191
+            assert data[1]["boost"] == 14.0
+
+    finally:
+        app.dependency_overrides.clear()
+
+def test_get_datalog_telemetry_not_found(test_db):
+    """Test retrieving telemetry for a nonexisting datalog."""
+
+    app.dependency_overrides[get_db] = override_get_db(test_db)
+
+    try:
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/logs/999/telemetry"
+            )
+
+            assert response.status_code == 404
+            assert response.json()["detail"] == "Datalog not found"
+
+    finally:
+        app.dependency_overrides.clear()
+
 
 def test_delete_datalog(test_db):
         app.dependency_overrides[get_db] = override_get_db(test_db)
@@ -234,7 +310,6 @@ def test_upload_datalog(test_db):
     finally:
         app.dependency_overrides.clear()
 
-
 def test_upload_empty_csv_returns_422(test_db):
     """Test uploading an empty CSV returns a 422 error."""
 
@@ -258,7 +333,6 @@ def test_upload_empty_csv_returns_422(test_db):
 
     finally:
         app.dependency_overrides.clear()
-
 
 def test_upload_insufficient_datalog_returns_422(test_db):
     """Test uploading a CSV with too few telemetry rows returns 422."""
@@ -289,7 +363,6 @@ def test_upload_insufficient_datalog_returns_422(test_db):
 
     finally:
         app.dependency_overrides.clear()
-
 
 def test_upload_invalid_file_type_returns_422(test_db):
     """Test that uploading a non-CSV file return 422."""
