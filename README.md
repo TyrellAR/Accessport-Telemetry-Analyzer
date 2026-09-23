@@ -90,6 +90,8 @@ Data Normalization
 * Datalog listing
 * Datalog deletion
 * Telemetry sample persistence
+* Telemetry sample retrieval
+* Chronological telemetry ordering
 * Domain → database conversion
 * Database → domain reconstruction
 * Telemetry DataFrame reconstruction
@@ -101,13 +103,16 @@ Data Normalization
 * API metadata
 * Root endpoint
 * `/health` endpoint
-* Datalog response schema
+* Datalog response schemas
+* Telemetry response schema
 * Datalog listing endpoint
 * Individual datalog retrieval endpoint
+* Datalog telemetry retrieval endpoint
 * Datalog deletion endpoint
+* Datalog upload endpoint
 * API dependency injection for database sessions
 * API integration with SQLAlchemy repository layer
-* API endpoint tests
+* HTTP validation and error handling
 * Swagger/OpenAPI documentation
 
 ### Testing
@@ -125,14 +130,16 @@ Data Normalization
 * API endpoint tests
 * Database cascade tests
 * Persistence round-trip tests
+* Upload API integration tests
+* Telemetry API tests
+* API not-found tests
+
+**Current test status: 64 passed, 1 warning**
 
 ---
 
 ## Planned Features
 
-* Upload COBB Accessport datalog CSV files through the REST API
-* Complete API → ingestion → persistence integration
-* REST API for retrieving telemetry
 * Interactive telemetry charts
 * RPM and boost analysis
 * AFR/lambda visualization
@@ -142,8 +149,10 @@ Data Normalization
 * Summary statistics
 * Identify potentially unusual telemetry values
 * Compare telemetry channels
-* Manage and delete uploaded logs
 * Frontend dashboard
+* Production PostgreSQL deployment
+* CI/CD pipeline
+* Cloud deployment
 
 ---
 
@@ -230,6 +239,27 @@ DatalogRepository
         │
         ▼
 SQLAlchemy / SQLite
+```
+
+Telemetry retrieval follows a separate read path:
+
+```text
+GET /api/logs/{id}/telemetry
+        │
+        ▼
+    FastAPI API
+        │
+        ▼
+DatalogRepository
+        │
+        ▼
+TelemetrySampleModel
+        │
+        ▼
+TelemetrySampleResponse
+        │
+        ▼
+      JSON
 ```
 
 The API layer is responsible for HTTP concerns.
@@ -327,7 +357,7 @@ Accessport-Telemetry-Analyzer/
 └── docker-compose.yml
 ```
 
-The API has now been separated from the FastAPI application entry point.
+The API has been separated from the FastAPI application entry point.
 
 `backend/app/main.py` is responsible for creating the FastAPI application and registering API routers.
 
@@ -357,27 +387,22 @@ The backend exposes a RESTful API for interacting with telemetry logs.
 
 ## Current Endpoints
 
-| Method   | Endpoint         | Description                 |
-| -------- | ---------------- | --------------------------- |
-| `GET`    | `/`              | API information             |
-| `GET`    | `/health`        | Health check                |
-| `GET`    | `/api/logs`      | Retrieve all datalogs       |
-| `GET`    | `/api/logs/{id}` | Retrieve a specific datalog |
-| `DELETE` | `/api/logs/{id}` | Delete a datalog            |
-
-## In Development
-
-| Method | Endpoint           | Description                        |
-| ------ | ------------------ | ---------------------------------- |
-| `POST` | `/api/logs/upload` | Upload and persist a telemetry CSV |
+| Method   | Endpoint                   | Description                        |
+| -------- | -------------------------- | ---------------------------------- |
+| `GET`    | `/`                        | API information                    |
+| `GET`    | `/health`                  | Health check                       |
+| `GET`    | `/api/logs`                | Retrieve all datalogs              |
+| `GET`    | `/api/logs/{id}`           | Retrieve a specific datalog        |
+| `GET`    | `/api/logs/{id}/telemetry` | Retrieve telemetry samples         |
+| `POST`   | `/api/logs/upload`         | Upload and persist a telemetry CSV |
+| `DELETE` | `/api/logs/{id}`           | Delete a datalog                   |
 
 ## Planned Endpoints
 
-| Method | Endpoint                   | Description                  |
-| ------ | -------------------------- | ---------------------------- |
-| `GET`  | `/api/logs/{id}/telemetry` | Retrieve telemetry samples   |
-| `GET`  | `/api/logs/{id}/metrics`   | Retrieve telemetry metrics   |
-| `GET`  | `/api/logs/{id}/analysis`  | Retrieve calculated analysis |
+| Method | Endpoint                  | Description                  |
+| ------ | ------------------------- | ---------------------------- |
+| `GET`  | `/api/logs/{id}/metrics`  | Retrieve telemetry metrics   |
+| `GET`  | `/api/logs/{id}/analysis` | Retrieve calculated analysis |
 
 Interactive API documentation is provided by FastAPI.
 
@@ -597,7 +622,14 @@ The test suite currently covers:
 * Datalog API listing
 * Datalog API retrieval
 * Datalog API deletion
+* Datalog upload
+* Telemetry API retrieval
 * API not-found behavior
+* API validation and error handling
+
+The current backend test suite contains **64 passing tests**.
+
+One third-party deprecation warning from Starlette/AnyIO remains during testing but does not currently cause test failures.
 
 The API tests use an isolated test database so API testing does not depend on the development SQLite database.
 
@@ -618,6 +650,11 @@ Unit Tests
 Service Tests
     │
     └── Persistence / Ingestion
+         │
+         ▼
+Repository Tests
+    │
+    └── Database Operations
          │
          ▼
 API Tests
@@ -695,6 +732,7 @@ The goal is to verify individual components independently before verifying compl
 * [x] Retrieve all datalogs
 * [x] Delete datalogs
 * [x] Persist telemetry samples
+* [x] Retrieve telemetry samples
 * [x] Add repository tests
 
 ## Phase 3.4 — Persist Datalogs
@@ -784,39 +822,49 @@ The goal is to verify individual components independently before verifying compl
 
 ### Datalog Upload
 
-* [ ] Implement `POST /api/logs/upload`
+* [x] Implement `POST /api/logs/upload`
 * [x] Create `DatalogIngestionService`
 * [x] Connect parsing to metadata extraction
 * [x] Connect validation to ingestion pipeline
 * [x] Connect normalization to ingestion pipeline
-* [ ] Connect uploaded files to ingestion service
-* [ ] Connect ingestion service to persistence service
-* [ ] Persist uploaded datalogs through the API
-* [ ] Return persisted datalog through the API
-* [ ] Add upload endpoint tests
+* [x] Connect uploaded files to ingestion service
+* [x] Connect ingestion service to persistence service
+* [x] Persist uploaded datalogs through the API
+* [x] Return persisted datalog through the API
+* [x] Add upload endpoint tests
+* [x] Validate uploaded file type
+* [x] Return appropriate HTTP errors for invalid/empty telemetry data
 
 ### Phase 4.2 Integration
 
-* [ ] Verify API → service → repository flow
-* [ ] Verify upload → ingestion → persistence
-* [ ] Verify persisted datalog can be retrieved through API
-* [ ] Verify uploaded telemetry is persisted
-* [ ] Verify deletion after API upload
+* [x] Verify API → service → repository flow
+* [x] Verify upload → ingestion → persistence
+* [x] Verify persisted datalog can be retrieved through API
+* [x] Verify uploaded telemetry is persisted
+* [x] Verify deletion after API upload
 
-**Current Development Phase: 🚧 Phase 4.2**
-
-**Current Focus: `POST /api/logs/upload`**
+**Phase 4.2 Status: ✅ Complete**
 
 ---
 
 # Phase 4.3 — Telemetry Endpoints
 
-* [ ] Implement telemetry retrieval endpoint
-* [ ] Retrieve telemetry samples for a datalog
-* [ ] Convert telemetry data into API-friendly JSON
-* [ ] Design telemetry response schemas
-* [ ] Handle large telemetry datasets
-* [ ] Add telemetry endpoint tests
+* [x] Implement telemetry retrieval endpoint
+* [x] Retrieve telemetry samples for a datalog
+* [x] Convert telemetry data into API-friendly JSON
+* [x] Design telemetry response schema
+* [x] Add telemetry endpoint tests
+* [x] Handle missing datalog IDs
+* [x] Return telemetry samples in chronological order
+
+### Remaining Work
+
+* [ ] Evaluate response behavior for very large telemetry datasets
+* [ ] Consider pagination or filtering for large telemetry responses
+
+**Phase 4.3 Status: 🚧 In Progress**
+
+**Current Development Focus:** Telemetry API scalability and preparation for analysis endpoints.
 
 ---
 
@@ -839,19 +887,20 @@ The goal is to verify individual components independently before verifying compl
 
 This phase will focus specifically on making the API robust when dealing with invalid requests and files.
 
-* [ ] Validate uploaded files
-* [ ] Validate file extensions
-* [ ] Validate request parameters
-* [ ] Handle invalid CSV files
-* [ ] Handle malformed CSV files
-* [ ] Handle empty files
-* [ ] Handle unsupported file types
-* [ ] Handle invalid telemetry data
-* [ ] Handle missing datalog IDs
-* [ ] Return appropriate HTTP status codes
-* [ ] Create meaningful API error responses
-* [ ] Add API validation tests
-* [ ] Add API error-handling tests
+* [x] Validate uploaded files
+* [x] Validate file extensions
+* [x] Validate uploaded telemetry data
+* [x] Handle invalid CSV files
+* [x] Handle empty files
+* [x] Handle unsupported file types
+* [x] Handle invalid telemetry data
+* [x] Handle missing datalog IDs
+* [x] Return appropriate HTTP status codes
+* [x] Create meaningful API error responses
+* [x] Add API validation tests
+* [x] Add API error-handling tests
+
+**Phase 4.5 Status: 🚧 Initial implementation complete; additional hardening planned**
 
 ---
 
@@ -859,14 +908,14 @@ This phase will focus specifically on making the API robust when dealing with in
 
 This phase will verify complete workflows across multiple application layers.
 
-* [ ] Test upload → ingestion → persistence
-* [ ] Test persistence → API retrieval
-* [ ] Test telemetry retrieval
+* [x] Test upload → ingestion → persistence
+* [x] Test persistence → API retrieval
+* [x] Test telemetry retrieval
 * [ ] Test analysis workflow
-* [ ] Test deletion workflow
-* [ ] Test complete API lifecycle
-* [ ] Test invalid API workflows
-* [ ] Run complete backend test suite
+* [x] Test deletion workflow
+* [x] Test complete API lifecycle through currently implemented operations
+* [x] Test invalid API workflows
+* [x] Run complete backend test suite
 
 ### Complete API Lifecycle
 
@@ -889,6 +938,8 @@ Analyze
    ↓
 Delete
 ```
+
+> Analysis remains a planned component of the lifecycle.
 
 **Phase 4 Goal:**
 
@@ -913,9 +964,9 @@ Build a complete backend API capable of accepting a COBB Accessport datalog, pro
 # Phase 6 — Testing
 
 * [ ] Expand unit-test coverage
-* [ ] Add API tests
-* [ ] Add integration tests
-* [ ] Add data-validation tests
+* [x] Add API tests
+* [x] Add integration tests
+* [x] Add data-validation tests
 * [ ] Add frontend tests
 * [ ] Add end-to-end tests
 * [ ] Improve test coverage
