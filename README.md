@@ -108,6 +108,7 @@ Data Normalization
 * Datalog listing endpoint
 * Individual datalog retrieval endpoint
 * Datalog telemetry retrieval endpoint
+* Telemetry pagination with `limit` and `offset` query parameters
 * Datalog deletion endpoint
 * Datalog upload endpoint
 * API dependency injection for database sessions
@@ -132,6 +133,7 @@ Data Normalization
 * Persistence round-trip tests
 * Upload API integration tests
 * Telemetry API tests
+* Telemetry pagination API test
 * API not-found tests
 
 **Current test status: 64 passed, 1 warning**
@@ -393,7 +395,7 @@ The backend exposes a RESTful API for interacting with telemetry logs.
 | `GET`    | `/health`                  | Health check                       |
 | `GET`    | `/api/logs`                | Retrieve all datalogs              |
 | `GET`    | `/api/logs/{id}`           | Retrieve a specific datalog        |
-| `GET`    | `/api/logs/{id}/telemetry` | Retrieve telemetry samples         |
+| `GET`    | `/api/logs/{id}/telemetry` | Retrieve paginated telemetry samples |
 | `POST`   | `/api/logs/upload`         | Upload and persist a telemetry CSV |
 | `DELETE` | `/api/logs/{id}`           | Delete a datalog                   |
 
@@ -413,6 +415,27 @@ http://127.0.0.1:8000/docs
 ```
 
 The OpenAPI specification is also available through FastAPI.
+
+## Telemetry Pagination
+
+The telemetry endpoint supports database-backed pagination through `limit` and `offset` query parameters:
+
+```text
+GET /api/logs/{id}/telemetry?limit=100&offset=0
+```
+
+- `limit` controls the maximum number of telemetry samples returned. The default is `100`, the minimum is `1`, and the maximum is `1000`.
+- `offset` controls how many chronologically ordered telemetry samples are skipped before results are returned. The default is `0` and values must be non-negative.
+- Pagination is applied in the repository/database query rather than by loading the complete telemetry dataset and slicing it in application memory.
+
+For example:
+
+```text
+GET /api/logs/42/telemetry?limit=2&offset=2
+```
+
+This skips the first two telemetry samples and returns the next two. Telemetry is ordered chronologically, with the database record ID used as a secondary ordering key for deterministic pagination.
+
 
 ---
 
@@ -624,6 +647,7 @@ The test suite currently covers:
 * Datalog API deletion
 * Datalog upload
 * Telemetry API retrieval
+* Telemetry pagination behavior
 * API not-found behavior
 * API validation and error handling
 
@@ -856,15 +880,19 @@ The goal is to verify individual components independently before verifying compl
 * [x] Add telemetry endpoint tests
 * [x] Handle missing datalog IDs
 * [x] Return telemetry samples in chronological order
+* [x] Add `limit` and `offset` query parameters
+* [x] Apply pagination at the database/repository layer
+* [x] Validate pagination bounds through FastAPI
+* [x] Add API test for pagination behavior
 
 ### Remaining Work
 
-* [ ] Evaluate response behavior for very large telemetry datasets
-* [ ] Consider pagination or filtering for large telemetry responses
+* [ ] Add pagination edge-case and validation tests
+* [ ] Evaluate filtering and downsampling strategies for large telemetry datasets
 
-**Phase 4.3 Status: 🚧 In Progress**
+**Phase 4.3 Status: 🚧 In Progress — core pagination implemented**
 
-**Current Development Focus:** Telemetry API scalability and preparation for analysis endpoints.
+**Current Development Focus:** Pagination edge-case testing, telemetry API scalability, and preparation for analysis endpoints.
 
 ---
 
