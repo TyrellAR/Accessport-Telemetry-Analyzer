@@ -54,12 +54,21 @@ class DatalogRepository:
         return samples
 
     def get_telemetry_samples(
-            self, datalog_id: int
+            self,
+            datalog_id: int,
+            limit: int = 100,
+            offset: int = 0,
     ) -> list[TelemetrySampleModel]:
+        
         statement = (
             select(TelemetrySampleModel)
             .where(TelemetrySampleModel.datalog_id == datalog_id)
-            .order_by(TelemetrySampleModel.timestamp)
+            .order_by(
+                TelemetrySampleModel.timestamp,
+                TelemetrySampleModel.id,
+            )
+            .limit(limit)
+            .offset(offset)
         )
 
         return list(self.session.scalars(statement))

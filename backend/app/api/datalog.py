@@ -1,6 +1,7 @@
+from email.policy import default
 import tempfile
 
-from fastapi import APIRouter, Depends, HTTPException, File, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Query
 from sqlalchemy.orm import Session
 
 from backend.app.database.database import get_db
@@ -47,6 +48,8 @@ def get_datalog(datalog_id: int, db: Session = Depends(get_db)):
 )
 def get_datalog_telemetry(
     datalog_id: int,
+    limit: int = Query(default=100, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
 
@@ -61,7 +64,11 @@ def get_datalog_telemetry(
             status_code=404,
             detail="Datalog not found",
         )
-    return repository.get_telemetry_samples(datalog_id)
+    return repository.get_telemetry_samples(
+        datalog_id,
+        limit=limit,
+        offset=offset,
+    )
 
 @router.delete("/{datalog_id}")
 def delete_datalog(

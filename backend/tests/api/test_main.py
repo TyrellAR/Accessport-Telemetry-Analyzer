@@ -401,3 +401,196 @@ def test_upload_invalid_file_type_returns_422(test_db):
 
     finally:
         app.dependency_overrides.clear()
+
+def test_get_datalog_telemetry_pagination(test_db):
+    """Test retrieving telemetry samples for a datalog with pagination."""
+
+    app.dependency_overrides[get_db] = override_get_db(test_db)
+
+    try:
+        datalog = DatalogModel(
+            filename="telemetry_pagination_test.csv",
+            vehicle="2021 USDM WRX",
+        )
+
+        samples = [
+                    TelemetrySampleModel(
+                        timestamp=float(i),
+                        rpm=2000 + i * 100,
+                        speed=20 + i,
+                        coolant_temp=190 + i,
+                        boost=10.0 + i * 0.5,
+                        datalog=datalog,
+                    )
+                    for i in range(1, 21)
+                ]
+        
+        with Session(test_db) as session:
+                # Add a datalog and 20 telemetry samples to the test database
+                session.add(datalog)
+                session.add_all(samples)
+                session.commit()
+
+                datalog_id = datalog.id
+
+        with TestClient(app) as client:
+            # testClient communicaties with the FastAPI app, which uses the overridden get_db dependency to use the test database
+            response = client.get(
+                f"/api/logs/{datalog_id}/telemetry?limit=2&offset=2"
+            )
+            assert response.status_code == 200
+
+            data = response.json()
+
+            assert len(data) == 2
+            assert data[0]["timestamp"] == 3.0
+            assert data[1]["timestamp"] == 4.0
+
+    finally: 
+        app.dependency_overrides.clear()
+
+def test_get_datalog_telemetry_invalid_limit(test_db):
+    """Reject telemetry requests with an invalid limit."""
+
+    app.dependency_overrides[get_db] = override_get_db(test_db)
+
+    try:
+        datalog = DatalogModel(
+            filename="telemetry_invalid_limit_test.csv",
+            vehicle="2021 USDM WRX",
+
+        )
+        with Session(test_db) as session: 
+            #establish a datalog in the test database
+            session.add(datalog)
+            session.commit()
+
+            datalog_id = datalog.id
+
+        with TestClient(app) as client:
+            #testClient communicates with the FastAPI app, which uses the overridden get_db dependency to use the test database
+            response = client.get(
+                #get telemetry samples for the datalog with an invalid limit of 0 from api route base + /api/logs/ + datalog id
+                f"/api/logs/{datalog_id}/telemetry?limit=0"
+            )
+
+            # assert unprocessable api or json response
+            assert response.status_code == 422
+            errors = response.json()["detail"]
+            assert len(errors) > 0
+            assert errors[0]["loc"] == ["query", "limit"]
+            assert errors[0]["type"] == "greater_than_equal"
+
+    finally: # close the dependency override to avoid affecting other tests
+        app.dependency_overrides.clear()
+
+
+def test_get_datalog_telemetry_limit_exceeds_maximum(test_db):
+    """Reject telemetry requests with a limit that exceeds the maximum allowed."""
+
+    app.dependency_overrides[get_db] = override_get_db(test_db)
+
+    try:
+        datalog = DatalogModel(
+            filename="telemetry_exceed_limit_test.csv",
+            vehicle="2021 USDM WRX",
+        )
+        with Session(test_db) as session:
+            # establish a datalog in the test database
+            session.add(datalog)
+            session.commit()
+
+            datalog_id = datalog.id
+
+        with TestClient(app) as client:
+            # testClient communicates with the FastAPI app, which uses the overridden get_db dependency to use the test database
+            response = client.get(
+                # get telemetry samples for the datalog with a limit that exceeds the maximum allowed (1000) from api route base + /api/logs/ + datalog id
+                f"/api/logs/{datalog_id}/telemetry?limit=1001"
+            )
+
+            # assert unprocessable api or json response
+            assert response.status_code == 422
+            errors = response.json()["detail"]
+            assert len(errors) > 0
+            assert errors[0]["loc"] == ["query", "limit"]
+            assert errors[0]["type"] == "less_than_equal"
+
+    finally:  # close the dependency override to avoid affecting other tests
+        app.dependency_overrides.clear()
+
+
+def test_get_datalog_telemetry_invalid_offset(test_db):
+    """Reject telemetry request with an invalid offset."""
+
+    app.dependency_overrides[get_db] = override_get_db(test_db)
+
+    try:
+        datalog = DatalogModel(
+            filename="telemetry_invalid_offset_test.csv",
+            vehicle="2021 USDM WRX",
+        )
+
+        with Session(test_db) as session:
+            session.add(datalog)
+            session.commit()
+
+            datalog_id = datalog.id
+
+        with TestClient(app) as client:
+            response = client.get(
+                f"/api/logs/{datalog_id}/telemetry?offset=-1"
+            )
+
+            assert response.status_code == 422
+            errors = response.json()["detail"]
+            assert len(errors) > 0
+            assert errors[0]["loc"] == ["query", "offset"]
+            assert errors[0]["type"] == "greater_than_equal"
+
+    finally:
+        app.dependency_overrides.clear()
+
+def test_get_datalog_telemetry_offset_beyond_records(test_db):
+    """Test retrieving telemetry samples with an offset beyond the valid range of records """
+
+    app.dependency_overrides[get_db] = override_get_db(test_db)
+
+    try:
+        datalog = DatalogModel(
+            filename="telemetry_offset_beyond_records_test.csv",
+            vehicle="2021 USDM WRX",
+        )
+
+        samples = [
+            TelemetrySampleModel(
+                timestamp=float(i),
+                rpm=2000 + i * 100,
+                speed=20 + i,
+                coolant_temp=190 + i,
+                boost=10.0 + i * 0.5,
+                datalog=datalog,
+            )
+            for i in range(1, 6)  # Create 5 telemetry samples
+        ]
+
+        with Session(test_db) as session:
+            # Add a datalog and 5 telemetry samples to the test database
+            session.add(datalog)
+            session.add_all(samples)
+            session.commit()
+
+            datalog_id = datalog.id
+
+        with TestClient(app) as client:
+            # Request telemetry samples with an offset beyond the number of available records
+            response = client.get(
+                f"/api/logs/{datalog_id}/telemetry?limit=2&offset=10"
+            )
+
+            assert response.status_code == 200
+
+            assert response.json() == []  # Expecting an empty list since the offset is beyond the available records
+
+    finally:
+        app.dependency_overrides.clear()
