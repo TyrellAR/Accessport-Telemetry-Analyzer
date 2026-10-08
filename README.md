@@ -133,10 +133,10 @@ Data Normalization
 * Persistence round-trip tests
 * Upload API integration tests
 * Telemetry API tests
-* Telemetry pagination API test
+* Telemetry pagination API tests (happy path, parameter validation, and empty results)
 * API not-found tests
 
-**Current test status: 64 passed, 1 warning**
+**Current locally verified test status: 69 passed, 1 warning**
 
 ---
 
@@ -436,6 +436,8 @@ GET /api/logs/42/telemetry?limit=2&offset=2
 
 This skips the first two telemetry samples and returns the next two. Telemetry is ordered chronologically, with the database record ID used as a secondary ordering key for deterministic pagination.
 
+Invalid pagination bounds return HTTP `422` with structured validation details. If a datalog exists but the offset exceeds its available samples, the endpoint returns HTTP `200` with an empty JSON array (`[]`). A nonexistent datalog returns HTTP `404`.
+
 
 ---
 
@@ -647,11 +649,13 @@ The test suite currently covers:
 * Datalog API deletion
 * Datalog upload
 * Telemetry API retrieval
-* Telemetry pagination behavior
+* Telemetry pagination behavior, including valid limit/offset combinations
+* Pagination validation (`limit=0`, `limit=1001`, and `offset=-1` return HTTP 422)
+* Offset beyond available records (HTTP 200 with an empty JSON array)
 * API not-found behavior
 * API validation and error handling
 
-The current backend test suite contains **64 passing tests**.
+The latest locally executed backend test suite contains **69 passing tests** (0 failures).
 
 One third-party deprecation warning from Starlette/AnyIO remains during testing but does not currently cause test failures.
 
@@ -884,15 +888,19 @@ The goal is to verify individual components independently before verifying compl
 * [x] Apply pagination at the database/repository layer
 * [x] Validate pagination bounds through FastAPI
 * [x] Add API test for pagination behavior
+* [x] Add pagination edge-case and validation tests
+* [x] Verify invalid minimum and maximum limits return HTTP 422
+* [x] Verify negative offsets return HTTP 422
+* [x] Verify offsets beyond available samples return an empty JSON array
+* [x] Run full backend regression suite (69 passing tests)
 
-### Remaining Work
+### Future Enhancements
 
-* [ ] Add pagination edge-case and validation tests
 * [ ] Evaluate filtering and downsampling strategies for large telemetry datasets
 
-**Phase 4.3 Status: 🚧 In Progress — core pagination implemented**
+**Phase 4.3 Status: ✅ Complete — core telemetry retrieval and pagination**
 
-**Current Development Focus:** Pagination edge-case testing, telemetry API scalability, and preparation for analysis endpoints.
+**Current Development Focus:** Phase 4.4 — design and implement telemetry metrics and analysis services.
 
 ---
 
