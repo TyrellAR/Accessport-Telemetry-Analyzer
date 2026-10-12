@@ -4,7 +4,7 @@ A full-stack application for importing, processing, analyzing, and visualizing v
 
 The project is designed to turn raw vehicle datalogs into an interactive application that makes telemetry easier to inspect, compare, and understand.
 
-> **Project Status:** 🚧 In Development — Backend REST API development underway
+> **Project Status:** 🚧 In Development — Backend REST API and telemetry analysis development underway
 
 ---
 
@@ -134,9 +134,11 @@ Data Normalization
 * Upload API integration tests
 * Telemetry API tests
 * Telemetry pagination API tests (happy path, parameter validation, and empty results)
+* Repository aggregation tests for boost, RPM, AFR, and coolant temperature
+* Empty-datalog and cross-datalog isolation tests for telemetry statistics
 * API not-found tests
 
-**Current locally verified test status: 69 passed, 1 warning**
+**Current locally verified test status (reported October 12, 2026): 77 passed, 1 third-party deprecation warning**
 
 ---
 
@@ -148,7 +150,7 @@ Data Normalization
 * Throttle position analysis
 * Engine temperature monitoring
 * Ignition timing visualization
-* Summary statistics
+* Summary statistics exposed through an API (repository aggregation is implemented; service/API pending)
 * Identify potentially unusual telemetry values
 * Compare telemetry channels
 * Frontend dashboard
@@ -304,7 +306,8 @@ Accessport-Telemetry-Analyzer/
 │   │   │
 │   │   ├── models/
 │   │   │   ├── __init__.py
-│   │   │   └── datalog.py
+│   │   │   ├── datalog.py
+│   │   │   └── metrics.py
 │   │   │
 │   │   ├── schemas/
 │   │   │   ├── __init__.py
@@ -467,7 +470,9 @@ The ingestion system normalizes supported source channels into consistent applic
 
 # Data Analysis
 
-The application will calculate and visualize useful statistics from uploaded telemetry.
+The repository now calculates minimum, maximum, and average values for boost, RPM, AFR, and coolant temperature using one SQLAlchemy aggregate query filtered by datalog ID. The results are represented by immutable `MetricStatistics` and `TelemetryMetrics` domain dataclasses. Empty datalogs return `None` for each statistic; samples from different datalogs remain isolated.
+
+Service orchestration, the metrics API endpoint, and visualizations are planned next.
 
 Examples include:
 
@@ -653,9 +658,11 @@ The test suite currently covers:
 * Pagination validation (`limit=0`, `limit=1001`, and `offset=-1` return HTTP 422)
 * Offset beyond available records (HTTP 200 with an empty JSON array)
 * API not-found behavior
+* Boost and multi-channel statistics aggregation (min/max/avg)
+* Statistics for empty datalogs and isolation by datalog ID
 * API validation and error handling
 
-The latest locally executed backend test suite contains **69 passing tests** (0 failures).
+The latest locally executed backend test suite (reported October 12, 2026) contains **77 passing tests** (0 failures).
 
 One third-party deprecation warning from Starlette/AnyIO remains during testing but does not currently cause test failures.
 
@@ -892,7 +899,7 @@ The goal is to verify individual components independently before verifying compl
 * [x] Verify invalid minimum and maximum limits return HTTP 422
 * [x] Verify negative offsets return HTTP 422
 * [x] Verify offsets beyond available samples return an empty JSON array
-* [x] Run full backend regression suite (69 passing tests)
+* [x] Run full backend regression suite (69 passing tests at Phase 4.3 completion)
 
 ### Future Enhancements
 
@@ -900,18 +907,37 @@ The goal is to verify individual components independently before verifying compl
 
 **Phase 4.3 Status: ✅ Complete — core telemetry retrieval and pagination**
 
-**Current Development Focus:** Phase 4.4 — design and implement telemetry metrics and analysis services.
+**Current Development Focus:** Phase 4.4.4 — implement and test `TelemetryMetricsService` (not yet completed).
 
 ---
 
 # Phase 4.4 — Analysis & Metrics
 
-* [ ] Design metrics service
-* [ ] Implement telemetry statistics
-* [ ] Implement RPM analysis
-* [ ] Implement boost/MAP analysis
-* [ ] Implement AFR/lambda analysis
-* [ ] Implement temperature analysis
+### Phase 4.4.1–4.4.3 — Repository Statistics (Complete)
+
+* [x] Implement maximum boost query
+* [x] Implement minimum, maximum, and average boost statistics
+* [x] Define immutable `MetricStatistics` and `TelemetryMetrics` dataclasses
+* [x] Aggregate boost, RPM, AFR, and coolant temperature in a single database query
+* [x] Verify empty datalogs return `None` statistics
+* [x] Verify metrics remain isolated by datalog ID
+* [x] Run complete backend regression suite (77 passing tests)
+
+### Phase 4.4.4 — Metrics Service (Next)
+
+* [ ] Implement `TelemetryMetricsService`
+* [ ] Distinguish missing datalogs from existing empty datalogs
+* [ ] Add isolated service unit tests
+
+### Phase 4.4.5 — Metrics API (Planned)
+
+* [ ] Add Pydantic metrics response schemas
+* [ ] Implement `GET /api/logs/{id}/metrics`
+* [ ] Add metrics endpoint tests and not-found handling
+
+### Additional Analysis (Planned)
+
+* [ ] Implement advanced RPM, boost/MAP, AFR/lambda, and temperature analysis
 * [ ] Implement throttle analysis
 * [ ] Implement analysis endpoint
 * [ ] Add analysis tests
