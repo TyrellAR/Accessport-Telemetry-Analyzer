@@ -137,8 +137,9 @@ Data Normalization
 * Repository aggregation tests for boost, RPM, AFR, and coolant temperature
 * Empty-datalog and cross-datalog isolation tests for telemetry statistics
 * API not-found tests
+* Metrics service unit tests for existing and missing datalogs using mocked repository dependencies
 
-**Current locally verified test status (reported October 12, 2026): 77 passed, 1 third-party deprecation warning**
+**Current locally verified test status (reported October 13, 2026): 79 passed, 1 third-party deprecation warning**
 
 ---
 
@@ -150,7 +151,7 @@ Data Normalization
 * Throttle position analysis
 * Engine temperature monitoring
 * Ignition timing visualization
-* Summary statistics exposed through an API (repository aggregation is implemented; service/API pending)
+* Summary statistics exposed through an API (repository aggregation and service implemented; API pending)
 * Identify potentially unusual telemetry values
 * Compare telemetry channels
 * Frontend dashboard
@@ -314,6 +315,10 @@ Accessport-Telemetry-Analyzer/
 │   │   │   └── datalog.py
 │   │   │
 │   │   └── services/
+│   │       ├── analysis/
+│   │       │   ├── __init__.py
+│   │       │   └── metrics.py
+│   │       │
 │   │       ├── ingestion/
 │   │       │   ├── __init__.py
 │   │       │   ├── metadata.py
@@ -347,7 +352,8 @@ Accessport-Telemetry-Analyzer/
 │   │   │   └── test_datalog.py
 │   │   │
 │   │   └── services/
-│   │       └── test_persistence.py
+│   │       ├── test_persistence.py
+│   │       └── test_metrics.py
 │   │
 │   └── requirements.txt
 │
@@ -472,7 +478,7 @@ The ingestion system normalizes supported source channels into consistent applic
 
 The repository now calculates minimum, maximum, and average values for boost, RPM, AFR, and coolant temperature using one SQLAlchemy aggregate query filtered by datalog ID. The results are represented by immutable `MetricStatistics` and `TelemetryMetrics` domain dataclasses. Empty datalogs return `None` for each statistic; samples from different datalogs remain isolated.
 
-Service orchestration, the metrics API endpoint, and visualizations are planned next.
+`TelemetryMetricsServices` now coordinates repository statistics retrieval, returning `None` for a missing datalog while preserving empty-datalog statistics. Isolated service unit tests use repository mocks to verify the successful and missing-datalog paths. The metrics API endpoint and visualizations are planned next.
 
 Examples include:
 
@@ -662,7 +668,7 @@ The test suite currently covers:
 * Statistics for empty datalogs and isolation by datalog ID
 * API validation and error handling
 
-The latest locally executed backend test suite (reported October 12, 2026) contains **77 passing tests** (0 failures).
+The latest locally executed backend test suite (reported October 13, 2026) contains **79 passing tests** (0 failures).
 
 One third-party deprecation warning from Starlette/AnyIO remains during testing but does not currently cause test failures.
 
@@ -684,7 +690,7 @@ Unit Tests
          ▼
 Service Tests
     │
-    └── Persistence / Ingestion
+    └── Persistence / Ingestion / Telemetry Metrics
          │
          ▼
 Repository Tests
@@ -907,7 +913,7 @@ The goal is to verify individual components independently before verifying compl
 
 **Phase 4.3 Status: ✅ Complete — core telemetry retrieval and pagination**
 
-**Current Development Focus:** Phase 4.4.4 — implement and test `TelemetryMetricsService` (not yet completed).
+**Current Development Focus:** Phase 4.4.5 — implement Pydantic response schemas and the telemetry metrics API endpoint.
 
 ---
 
@@ -923,11 +929,12 @@ The goal is to verify individual components independently before verifying compl
 * [x] Verify metrics remain isolated by datalog ID
 * [x] Run complete backend regression suite (77 passing tests)
 
-### Phase 4.4.4 — Metrics Service (Next)
+### Phase 4.4.4 — Metrics Service (Complete)
 
-* [ ] Implement `TelemetryMetricsService`
-* [ ] Distinguish missing datalogs from existing empty datalogs
-* [ ] Add isolated service unit tests
+* [x] Implement telemetry metrics service (`TelemetryMetricsServices`)
+* [x] Distinguish missing datalogs from existing empty datalogs
+* [x] Add isolated service unit tests using repository mocks
+* [x] Verify full backend suite (79 passing tests, 1 third-party warning)
 
 ### Phase 4.4.5 — Metrics API (Planned)
 
