@@ -594,3 +594,137 @@ def test_get_datalog_telemetry_offset_beyond_records(test_db):
 
     finally:
         app.dependency_overrides.clear()
+
+def test_get_datalog_metrics(test_db):
+    """Test retrieving aggregated telemetry metrics for a datalog."""
+
+    app.dependency_overrides[get_db] = override_get_db(test_db)
+
+    try:
+        datalog = DatalogModel(
+            filename="metrics_test.csv",
+            vehicle="2021 USDM WRX",
+        )
+
+        sample_1 = TelemetrySampleModel(
+            timestamp=1.0,
+            rpm=2000,
+            speed=30,
+            boost=10.0,
+            afr=14.0,
+            coolant_temp=190,
+            datalog=datalog,
+        )
+        sample_2 = TelemetrySampleModel(
+            timestamp=2.0,
+            rpm=4000,
+            speed=50,
+            boost=20.0,
+            afr=12.0,
+            coolant_temp=200,
+            datalog=datalog,
+       )
+
+        with Session(test_db) as session:
+            session.add(datalog)
+            session.add_all([sample_1, sample_2])
+            session.commit()
+
+            datalog_id = datalog.id
+
+        with TestClient(app) as client:
+            response = client.get(
+                f"/api/logs/{datalog_id}/metrics"
+            )
+
+            assert response.status_code == 200
+
+            data = response.json()
+
+            assert data["boost"] == {
+                "minimum": 10.0,
+                "maximum": 20.0,
+                "average": 15.0,
+            }
+
+            assert data["rpm"] == {
+                "minimum": 2000.0,
+                "maximum": 4000.0,
+                "average": 3000.0,
+            }
+
+            assert data["afr"] == {
+                "minimum": 12.0,
+                "maximum": 14.0,
+                "average": 13.0,
+            }
+
+            assert data["coolant_temp"] == {
+                "minimum": 190.0,
+                "maximum": 200.0,
+                "average": 195.0,
+            }
+
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_get_datalog_metrics_not_found(test_db):
+    """Test retrieving metrics for a nonexistent datalog."""
+
+    app.dependency_overrides[get_db] = override_get_db(test_db)
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/logs/999/metrics")
+
+            assert response.status_code == 404
+            assert response.json() == {
+                "detail": "Datalog not found"
+            }
+
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_get_datalog_metrics_no_samples(test_db):
+    """Test metrics for a datalog with no telemetry samples."""
+
+    app.dependency_overrides[get_db] = override_get_db(test_db)
+
+    try:
+        datalog = DatalogModel(
+            filename="empty_metrics.csv",
+            vehicle="2021 USDM WRX",
+        )
+
+
+        with Session(test_db) as session:
+            session.add(datalog)
+            session.commit()
+
+            datalog_id = datalog.id
+
+        with TestClient(app) as client:
+            response = client.get(
+                f"/api/logs/{datalog_id}/metrics"
+
+            )
+
+            assert response.status_code == 200
+
+            data = response.json()
+
+            expected_statistics = {
+                "minimum": None,
+                "maximum": None,
+                "average": None,
+            }
+
+            assert data["boost"] == expected_statistics
+            assert data["rpm"] == expected_statistics
+            assert data["afr"] == expected_statistics
+            assert data["coolant_temp"] == expected_statistics
+            
+    finally:
+        app.dependency_overrides.clear()

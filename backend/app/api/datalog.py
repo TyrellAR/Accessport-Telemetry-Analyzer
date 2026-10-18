@@ -11,6 +11,8 @@ from backend.app.services.ingestion.parser import ParseError
 from backend.app.services.ingestion.service import DatalogIngestionService
 from backend.app.services.ingestion.validator import ValidationError
 from backend.app.services.persistence.datalog import DatalogPersistenceService
+from backend.app.schemas.metrics import TelemetryMetricsResponse
+from backend.app.services.analysis.metrics import TelemetryMetricsServices
 
 
 
@@ -69,6 +71,31 @@ def get_datalog_telemetry(
         limit=limit,
         offset=offset,
     )
+
+@router.get(
+        "/{datalog_id}/metrics",
+        response_model=TelemetryMetricsResponse,
+)
+
+def get_datalog_metrics(
+    datalog_id: int,
+    db: Session = Depends(get_db),
+
+):
+    """Return aggregated telemetry statistics for a datalog."""
+
+    repository = DatalogRepository(db)
+    metrics_service = TelemetryMetricsServices(repository)
+
+    metrics = metrics_service.get_metrics(datalog_id)
+
+    if metrics is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Datalog not found",
+        )
+    return metrics
+
 
 @router.delete("/{datalog_id}")
 def delete_datalog(
