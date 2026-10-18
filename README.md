@@ -4,7 +4,7 @@ A full-stack application for importing, processing, analyzing, and visualizing v
 
 The project is designed to turn raw vehicle datalogs into an interactive application that makes telemetry easier to inspect, compare, and understand.
 
-> **Project Status:** 🚧 In Development — Backend REST API and telemetry analysis development underway
+> **Project Status:** 🚧 In Development — Backend telemetry metrics API complete; further analysis and dashboard development underway
 
 ---
 
@@ -111,6 +111,8 @@ Data Normalization
 * Telemetry pagination with `limit` and `offset` query parameters
 * Datalog deletion endpoint
 * Datalog upload endpoint
+* Telemetry metrics endpoint (`GET /api/logs/{id}/metrics`)
+* Pydantic metrics response schemas
 * API dependency injection for database sessions
 * API integration with SQLAlchemy repository layer
 * HTTP validation and error handling
@@ -138,8 +140,9 @@ Data Normalization
 * Empty-datalog and cross-datalog isolation tests for telemetry statistics
 * API not-found tests
 * Metrics service unit tests for existing and missing datalogs using mocked repository dependencies
+* Metrics API integration tests for populated, nonexistent, and empty datalogs
 
-**Current locally verified test status (reported October 13, 2026): 79 passed, 1 third-party deprecation warning**
+**Current locally verified test status (reported October 18, 2026): 82 passed, 1 third-party deprecation warning**
 
 ---
 
@@ -151,7 +154,6 @@ Data Normalization
 * Throttle position analysis
 * Engine temperature monitoring
 * Ignition timing visualization
-* Summary statistics exposed through an API (repository aggregation and service implemented; API pending)
 * Identify potentially unusual telemetry values
 * Compare telemetry channels
 * Frontend dashboard
@@ -312,7 +314,8 @@ Accessport-Telemetry-Analyzer/
 │   │   │
 │   │   ├── schemas/
 │   │   │   ├── __init__.py
-│   │   │   └── datalog.py
+│   │   │   ├── datalog.py
+│   │   │   └── metrics.py
 │   │   │
 │   │   └── services/
 │   │       ├── analysis/
@@ -405,6 +408,7 @@ The backend exposes a RESTful API for interacting with telemetry logs.
 | `GET`    | `/api/logs`                | Retrieve all datalogs              |
 | `GET`    | `/api/logs/{id}`           | Retrieve a specific datalog        |
 | `GET`    | `/api/logs/{id}/telemetry` | Retrieve paginated telemetry samples |
+| `GET`    | `/api/logs/{id}/metrics`   | Retrieve boost, RPM, AFR, and coolant temperature statistics |
 | `POST`   | `/api/logs/upload`         | Upload and persist a telemetry CSV |
 | `DELETE` | `/api/logs/{id}`           | Delete a datalog                   |
 
@@ -412,7 +416,6 @@ The backend exposes a RESTful API for interacting with telemetry logs.
 
 | Method | Endpoint                  | Description                  |
 | ------ | ------------------------- | ---------------------------- |
-| `GET`  | `/api/logs/{id}/metrics`  | Retrieve telemetry metrics   |
 | `GET`  | `/api/logs/{id}/analysis` | Retrieve calculated analysis |
 
 Interactive API documentation is provided by FastAPI.
@@ -424,6 +427,16 @@ http://127.0.0.1:8000/docs
 ```
 
 The OpenAPI specification is also available through FastAPI.
+
+## Telemetry Metrics
+
+Retrieve aggregate statistics for an uploaded datalog:
+
+```text
+GET /api/logs/42/metrics
+```
+
+The JSON response contains `boost`, `rpm`, `afr`, and `coolant_temp` objects, each with `minimum`, `maximum`, and `average` fields. An existing datalog without telemetry samples returns `null` for each statistic; a missing datalog returns HTTP `404`.
 
 ## Telemetry Pagination
 
@@ -478,7 +491,7 @@ The ingestion system normalizes supported source channels into consistent applic
 
 The repository now calculates minimum, maximum, and average values for boost, RPM, AFR, and coolant temperature using one SQLAlchemy aggregate query filtered by datalog ID. The results are represented by immutable `MetricStatistics` and `TelemetryMetrics` domain dataclasses. Empty datalogs return `None` for each statistic; samples from different datalogs remain isolated.
 
-`TelemetryMetricsServices` now coordinates repository statistics retrieval, returning `None` for a missing datalog while preserving empty-datalog statistics. Isolated service unit tests use repository mocks to verify the successful and missing-datalog paths. The metrics API endpoint and visualizations are planned next.
+`TelemetryMetricsServices` now coordinates repository statistics retrieval, returning `None` for a missing datalog while preserving empty-datalog statistics. Isolated service unit tests use repository mocks to verify the successful and missing-datalog paths. The implemented `GET /api/logs/{id}/metrics` endpoint exposes these statistics through Pydantic response schemas. It returns HTTP `404` when the datalog does not exist, and HTTP `200` with `null` statistics when a datalog exists but has no samples. All three metrics API scenarios are covered by integration tests. Time-series visualization and advanced analysis remain planned.
 
 Examples include:
 
@@ -664,11 +677,12 @@ The test suite currently covers:
 * Pagination validation (`limit=0`, `limit=1001`, and `offset=-1` return HTTP 422)
 * Offset beyond available records (HTTP 200 with an empty JSON array)
 * API not-found behavior
+* Metrics API integration tests for successful statistics, HTTP 404, and empty datalogs
 * Boost and multi-channel statistics aggregation (min/max/avg)
 * Statistics for empty datalogs and isolation by datalog ID
 * API validation and error handling
 
-The latest locally executed backend test suite (reported October 13, 2026) contains **79 passing tests** (0 failures).
+The latest locally executed backend test suite (reported October 18, 2026) contains **82 passing tests** (0 failures).
 
 One third-party deprecation warning from Starlette/AnyIO remains during testing but does not currently cause test failures.
 
@@ -913,7 +927,7 @@ The goal is to verify individual components independently before verifying compl
 
 **Phase 4.3 Status: ✅ Complete — core telemetry retrieval and pagination**
 
-**Current Development Focus:** Phase 4.4.5 — implement Pydantic response schemas and the telemetry metrics API endpoint.
+**Current Development Focus:** Complete remaining API hardening and integration testing; plan efficient time-series data preparation for the frontend.
 
 ---
 
@@ -936,11 +950,17 @@ The goal is to verify individual components independently before verifying compl
 * [x] Add isolated service unit tests using repository mocks
 * [x] Verify full backend suite (79 passing tests, 1 third-party warning)
 
-### Phase 4.4.5 — Metrics API (Planned)
+### Phase 4.4.5 — Metrics API (Complete)
 
-* [ ] Add Pydantic metrics response schemas
-* [ ] Implement `GET /api/logs/{id}/metrics`
-* [ ] Add metrics endpoint tests and not-found handling
+* [x] Add Pydantic metrics response schemas
+* [x] Implement `GET /api/logs/{id}/metrics`
+* [x] Return HTTP 404 for missing datalogs
+* [x] Return HTTP 200 with null statistics for existing empty datalogs
+* [x] Add three metrics API integration tests
+* [x] Verify complete backend regression suite (82 passing tests, 1 third-party warning)
+* [x] Commit and push metrics API implementation (`b5fc7b8`)
+
+**Phase 4.4.5 Status: ✅ Complete**
 
 ### Additional Analysis (Planned)
 
@@ -1008,7 +1028,7 @@ Analyze
 Delete
 ```
 
-> Analysis remains a planned component of the lifecycle.
+> Summary metrics analysis is implemented through `GET /api/logs/{id}/metrics`; advanced analysis and visualization remain planned.
 
 **Phase 4 Goal:**
 
