@@ -4,7 +4,7 @@ A full-stack application for importing, processing, analyzing, and visualizing v
 
 The project is designed to turn raw vehicle datalogs into an interactive application that makes telemetry easier to inspect, compare, and understand.
 
-> **Project Status:** 🚧 In Development — Backend telemetry metrics API complete; further analysis and dashboard development underway
+> **Project Status:** 🚧 In Development — Backend metrics API complete; initial React dashboard connected to FastAPI (frontend development underway)
 
 ---
 
@@ -156,7 +156,7 @@ Data Normalization
 * Ignition timing visualization
 * Identify potentially unusual telemetry values
 * Compare telemetry channels
-* Frontend dashboard
+* CSV upload UI and datalog detail views
 * Production PostgreSQL deployment
 * CI/CD pipeline
 * Cloud deployment
@@ -361,7 +361,14 @@ Accessport-Telemetry-Analyzer/
 │   └── requirements.txt
 │
 ├── frontend/
-│   └── ...
+│   ├── src/
+│   │   ├── api/ (client.ts, datalogs.ts)
+│   │   ├── hooks/ (useDatalogs.ts)
+│   │   ├── pages/ (Dashboard.tsx)
+│   │   ├── types/ (datalog.ts)
+│   │   └── App.tsx
+│   ├── vite.config.ts
+│   └── package.json
 │
 ├── data/
 │   └── sample/
@@ -1038,15 +1045,34 @@ Build a complete backend API capable of accepting a COBB Accessport datalog, pro
 
 # Phase 5 — Frontend
 
-* [ ] Initialize React/TypeScript application
-* [ ] Create dashboard layout
-* [ ] Create upload interface
-* [ ] Display uploaded logs
+* [x] Initialize React/TypeScript application with Vite
+* [x] Configure Vite development proxy for FastAPI
+* [x] Implement reusable typed GET client and ApiError handling
+* [x] Mirror Pydantic datalog, telemetry, and metrics schemas in TypeScript
+* [x] Add datalog API service functions (list, detail, telemetry pagination, metrics)
+* [x] Add useDatalogs hook with loading, error, and cancellation handling
+* [x] Render initial dashboard with empty-state message
+* [x] Verify GET /api/logs through Vite proxy (HTTP 200, empty JSON array)
+* [x] Run frontend TypeScript build and ESLint successfully
+* [ ] Create styled dashboard layout and navigation
+* [ ] Create CSV upload interface
+* [ ] Display uploaded logs (non-empty data)
 * [ ] Build telemetry charts
 * [ ] Add metric summaries
 * [ ] Add telemetry filtering
 * [ ] Add responsive design
-* [ ] Connect frontend to REST API
+* [ ] Add production frontend-to-API routing
+
+**Phase 5 status (October 19, 2026):** Initial frontend data-fetching vertical slice works. Browser dashboard displays “No datalogs uploaded yet” when the API returns `[]`. Upload, non-empty list rendering, charts, and visual styling remain to be built.
+
+### Resume here (next development session)
+
+1. Add POST multipart upload support to the HTTP client/API service and build a CSV file upload UI.
+2. Refresh the datalog list after successful upload; verify a real COBB Accessport log appears.
+3. Add a datalog detail view and fetch paginated telemetry and metrics.
+4. Implement charts and metric cards incrementally, with tests.
+
+**Local development:** From the repository root, activate `backend/.venv` and run `python -m uvicorn backend.app.main:app --reload --port 8000`. In a second terminal, run `cd frontend && npm run dev` (Vite defaults to port 5173). Test the proxy with `curl -i http://localhost:5173/api/logs`. Run `npm run build` and `npm run lint` from `frontend/`. Ensure Uvicorn is recorded in `backend/requirements.txt` (version 0.54.0 was installed locally during setup).
 
 ---
 
