@@ -9,4 +9,4 @@ __pycache__/
 .pytest_cache/
 
 # macOS
-.DS_Store
+.DS_Storeaccessport_telemetry.db
