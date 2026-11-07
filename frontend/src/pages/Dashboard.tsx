@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { useDatalogs } from "../hooks/useDatalogs";
 import { useUploadDatalog } from "../hooks/useUploadDatalog";
@@ -10,6 +10,8 @@ export default function Dashboard() {
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function handleUpload(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -25,6 +27,10 @@ export default function Dashboard() {
       await refresh();
 
       setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      
       setUploadSuccess(true);
     } catch (err) {
       console.error("Failed to upload datalog:", err);
@@ -40,6 +46,7 @@ export default function Dashboard() {
 
         <form onSubmit={handleUpload}>
           <input
+          ref={fileInputRef}
             type="file"
             accept=".csv,text/csv"
             onChange={(event) => {
