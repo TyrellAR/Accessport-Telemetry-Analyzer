@@ -9,4 +9,7 @@ __pycache__/
 .pytest_cache/
 
 # macOS
-.DS_Storeaccessport_telemetry.db
+.DS_Store
+
+# Local SQLite database
+accessport_telemetry.db
