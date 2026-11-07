@@ -1,4 +1,4 @@
-import { apiGet} from "./client";
+import { apiGet, apiPostFile } from "./client";
 
 import type {
   Datalog,
@@ -42,6 +42,18 @@ export function getDatalogMetrics(
 ): Promise<TelemetryMetrics> {
   return apiGet<TelemetryMetrics>(
     `/logs/${id}/metrics`,
+    signal
+  );
+}
+
+
+export function uploadDatalog(
+  file: File,
+  signal?: AbortSignal
+): Promise<Datalog> {
+  return apiPostFile<Datalog>(
+    "/logs/upload",
+    file,
     signal
   );
 }
