@@ -50,10 +50,28 @@ export async function apiPostFile<T>(
     );
 
     if (!response.ok) {
-        throw new ApiError(
-            response.status,
-            `File upload failed: ${response.status}`
-        );
+        let message = `File upload failed: ${response.status}`;
+
+        try {
+            const body: unknown = await response.json();
+
+            if (
+                typeof body === "object" &&
+                body !== null &&
+                "detail" in body &&
+                typeof body.detail === "string"
+            ) {
+                message = body.detail;
+            }
+        } catch {
+            // keep the fallback message if the response is not valid JSON
+        }
+
+        if (response.status === 502 || response.status === 503) {
+            message = "The server is temporarily unavailable. Please try again later.";
+        }
+
+        throw new ApiError(response.status, message);
     }
 
     return (await response.json()) as T;
